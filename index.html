@@ -300,10 +300,7 @@ input:focus{border-color:var(--orange)}
 .wsec.a .wtag{background:var(--orange2);color:var(--navy)}
 .wsec.b .wtag{background:var(--cyan);color:var(--navy)}
 .wsec.c .wtag{background:var(--red);color:#fff}
-.wsub{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--orange2)}
-.wsec.b .wsub{color:var(--cyan)}
-.wsec.c .wsub{color:var(--sand)}
-.wtitle{font-weight:900;text-transform:uppercase;letter-spacing:.02em;color:#fff;font-size:14px;margin-bottom:8px}
+.wtitle{font-weight:900;text-transform:uppercase;letter-spacing:.02em;color:#fff;font-size:14px}
 .wcard{background:rgba(255,255,255,.05);border:1px solid rgba(56,204,245,.22);border-radius:12px;padding:12px 15px}
 .wrow{display:flex;align-items:baseline;gap:9px;padding:4px 0;font-size:14px}
 .wdot{width:7px;height:7px;border-radius:50%;background:var(--orange2);flex:0 0 auto;margin-top:7px}
@@ -317,11 +314,6 @@ input:focus{border-color:var(--orange)}
 .wtxt em{color:var(--muted);font-style:italic;font-weight:400}
 .wlbl{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin:10px 0 5px}
 .wcard > .wlbl:first-child{margin-top:0}
-.wnote{
-  font-size:12.5px;font-style:italic;color:var(--cyan-light);line-height:1.4;
-  background:rgba(56,204,245,.07);border-left:3px solid var(--cyan);border-radius:8px;
-  padding:8px 11px;margin-top:8px;
-}
 
 @media(min-width:640px){ :root{--pad:22px} .doc{padding:26px 24px} }
 @media print{
@@ -623,12 +615,14 @@ function renderWodColumns(bodyMd){
 function renderWodBlock(sec, idx, total){
   const { tag, title } = splitHeading(sec.heading);
   const tagcls = idx === 0 ? 'a' : (idx === total - 1 ? 'c' : 'b');
-  let sub = '', subTaken = false, body = '';
+  let body = '';
 
-  // Une seule passe, dans l'ordre du document : lignes, notes et labels
-  // intermédiaires restent à leur place réelle (ex. « 2 minute Rest » entre
-  // deux blocs AMRAP) au lieu d'être regroupés en bas (repéré par Ron,
-  // 2026-08-25, sur une séance Hyrox à AMRAP/Rest entrelacés).
+  // Une seule passe, dans l'ordre du document. 2026-08-25, 2 corrections de
+  // Ron : (1) commentaires/notes explicatives jamais affichés (parasite la
+  // lecture) ; (2) la ligne d'intro façon « 2 rounds of : » ou
+  // « For Time - CAP 15' » va DANS le bloc de texte, jamais à côté du tag
+  // du titre — donc plus de traitement spécial « sub », tout label court
+  // (intro ou intermédiaire type « Set 1, 3, 5 ») suit la même règle.
   sec.lines.forEach(raw => {
     const t = raw.trim();
     // ligne vide, ou séparateur --- entre jours (reste de la découpe par
@@ -637,20 +631,20 @@ function renderWodBlock(sec, idx, total){
     const bullet = t.match(/^[-*+]\s+(.*)$/);
     const numbered = t.match(/^(\d+)[.)]\s+(.*)$/);
     const italicOnly = t.match(/^\*([^*].*[^*]|[^*])\*$/);
+    const boldOnly = t.match(/^\*\*(.+)\*\*$/);
 
     if(bullet){ body += rowHtml(bullet[1], null); return; }
     if(numbered){ body += rowHtml(numbered[2], numbered[1]); return; }
-    if(italicOnly){ body += '<div class="wnote">'+inline(italicOnly[1])+'</div>'; return; }
-    if(!subTaken){ sub = t; subTaken = true; return; }
+    if(italicOnly || boldOnly) return;      // commentaire : ignoré
+    if(t.length > 40) return;               // long texte explicatif : ignoré
     body += '<div class="wlbl">'+esc(t)+'</div>';
   });
 
   return '<div class="wsec '+tagcls+'">'
        + '<div class="wsec-head">'
        + '<span class="wtag">'+esc(tag)+'</span>'
-       + (sub ? '<span class="wsub">'+esc(sub)+'</span>' : '')
+       + (title ? '<span class="wtitle">'+esc(title)+'</span>' : '')
        + '</div>'
-       + (title ? '<div class="wtitle">'+esc(title)+'</div>' : '')
        + (body ? '<div class="wcard">'+body+'</div>' : '')
        + '</div>';
 }
