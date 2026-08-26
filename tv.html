@@ -280,8 +280,15 @@ function pickSlide(i){
   renderSlide();
 }
 
+/** Disciplines affichées sur l'écran TV pour l'instant (demande de Ron,
+ *  2026-08-25) : seules CrossFit et Hyrox ont un affichage abouti — les
+ *  autres restent sur le repli générique, pas encore validées pour le mur
+ *  de salle. Liste à élargir ici quand une nouvelle discipline sera prête,
+ *  rien d'autre à toucher. */
+const TV_DISCIPLINES = ['crossfit', 'hyrox'];
+
 async function computeTodayCards(){
-  const discs = S.user.access.filter(a => a.key !== 'kids');
+  const discs = S.user.access.filter(a => TV_DISCIPLINES.includes(a.key));
   if(!discs.length) return [];
   const now = new Date();
   const { week:targetWeek, year:targetYear } = isoWeekYear(now);
