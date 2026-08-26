@@ -496,6 +496,20 @@ function classifyDayCrossfit(tags){
 
 const DISPLAY_RULES = { crossfit: classifyDayCrossfit };
 
+/** Blocs jamais affichés sur l'écran TV pour certaines disciplines (demande
+ *  de Ron, 2026-08-25 : Hyrox n'affiche que la Conditioning, pas le Warm-up —
+ *  la page NST regroupe les 2 mais seule la Conditioning intéresse le mur TV). */
+const HIDDEN_SECTIONS = {
+  hyrox: [/warm.?up/i]
+};
+
+/** Blocs jamais affichés, toutes disciplines confondues : pure commentaire
+ *  de coach (ex. Gymnastics a des blocs entiers « Message du coach » /
+ *  « Coaching tip — ... », pas juste des lignes isolées) — même esprit que
+ *  la règle « pas de commentaires » du 2026-08-25, mais au niveau du bloc
+ *  entier plutôt que de la ligne. */
+const ALWAYS_HIDDEN_SECTIONS = [/coaching tip/i, /message du coach/i];
+
 function renderWodSection(bodyMd, disc){
   const lines = bodyMd.split(/\r?\n/);
   const sections = [];
@@ -511,11 +525,18 @@ function renderWodSection(bodyMd, disc){
   });
   if(!sections.length) return '<div class="doc-fallback">'+md(bodyMd)+'</div>';
 
-  const total = sections.length;
+  const hidden = (disc && HIDDEN_SECTIONS[disc.key]) || [];
+  const visible = sections.filter(s => {
+    const tag = splitHeading(s.heading).tag;
+    return !ALWAYS_HIDDEN_SECTIONS.some(re => re.test(tag)) && !hidden.some(re => re.test(tag));
+  });
+  if(!visible.length) return '<div class="doc-fallback">'+md(bodyMd)+'</div>';
+
+  const total = visible.length;
   const classify = disc && DISPLAY_RULES[disc.key];
-  const tags = sections.map(s => splitHeading(s.heading).tag);
+  const tags = visible.map(s => splitHeading(s.heading).tag);
   const buckets = classify ? classify(tags) : tags.map((_, idx) => idx === total - 1 ? 'right' : 'left');
-  const blocks = sections.map((s, idx) => ({ bucket: buckets[idx], html: renderWodBlock(s, idx, total) }));
+  const blocks = visible.map((s, idx) => ({ bucket: buckets[idx], html: renderWodBlock(s, idx, total) }));
   const left  = blocks.filter(b => b.bucket === 'left').map(b => b.html).join('');
   const right = blocks.filter(b => b.bucket === 'right').map(b => b.html).join('');
   const has2col = left && right;
@@ -531,12 +552,16 @@ function renderWodBlock(sec, idx, total){
   const tagcls = idx === 0 ? 'a' : (idx === total - 1 ? 'c' : 'b');
   let body = '';
 
-  // Une seule passe, dans l'ordre du document. 2026-08-25, 2 corrections de
-  // Ron : (1) commentaires/notes explicatives jamais affichés (parasite la
-  // lecture de loin) ; (2) la ligne d'intro façon « 2 rounds of : » ou
-  // « For Time - CAP 15' » va DANS le bloc de texte, jamais à côté du tag
-  // du titre — donc plus de traitement spécial « sub », tout label court
-  // (intro ou intermédiaire type « Set 1, 3, 5 ») suit la même règle.
+  // Une seule passe, dans l'ordre du document. 2026-08-25, corrections de
+  // Ron : (1) commentaires/textes explicatifs jamais affichés (parasite la
+  // lecture de loin) — mais Ron a précisé que la mise en forme (italique/gras)
+  // ne veut RIEN dire sur le fond : « — 2 minute Rest — » est en italique
+  // dans le .md mais N'EST PAS un commentaire, c'est un repère de timing.
+  // Seule la LONGUEUR distingue un repère court (« 2 minute Rest », « Set 1,
+  // 3, 5 ») d'une vraie explication de coach à ignorer — pas le style
+  // markdown. (2) la ligne d'intro façon « 2 rounds of : » ou « For Time -
+  // CAP 15' » va DANS le bloc de texte, jamais à côté du tag du titre — donc
+  // plus de traitement spécial « sub », tout label court suit la même règle.
   sec.lines.forEach(raw => {
     const t = raw.trim();
     // ligne vide, ou séparateur --- entre jours (queue du dernier bloc du
@@ -544,14 +569,20 @@ function renderWodBlock(sec, idx, total){
     if(!t || /^-{3,}$/.test(t)) return;
     const bullet = t.match(/^[-*+]\s+(.*)$/);
     const numbered = t.match(/^(\d+)[.)]\s+(.*)$/);
-    const italicOnly = t.match(/^\*([^*].*[^*]|[^*])\*$/);
-    const boldOnly = t.match(/^\*\*(.+)\*\*$/);
-
     if(bullet){ body += rowHtml(bullet[1], null); return; }
     if(numbered){ body += rowHtml(numbered[2], numbered[1]); return; }
-    if(italicOnly || boldOnly) return;      // commentaire : ignoré
-    if(t.length > 40) return;               // long texte explicatif : ignoré
-    body += '<div class="wlbl">'+esc(t)+'</div>';
+
+    // Ligne non-liste : retirer emphase markdown ET liens ([texte](url)) pour
+    // juger la longueur du texte réellement AFFICHÉ — une ligne courte avec
+    // un lien vidéo (URL longue) ne doit pas être jugée trop longue à cause
+    // de l'URL brute (bug repéré par Ron, 2026-08-25, sur « General Wamup :
+    // Barbell Yoga » en Weightlifting, disparu à cause de l'URL du lien).
+    const italicOnly = t.match(/^\*([^*].*[^*]|[^*])\*$/);
+    const boldOnly = t.match(/^\*\*(.+)\*\*$/);
+    const clean = stripLinks(italicOnly ? italicOnly[1] : (boldOnly ? boldOnly[1] : t));
+
+    if(clean.length > 40) return;           // long texte explicatif : ignoré
+    body += '<div class="wlbl">'+esc(clean)+'</div>';
   });
 
   return '<div class="wsec '+tagcls+'">'
@@ -615,6 +646,12 @@ function splitDays(text){
 }
 
 function normDay(w){ return w.toUpperCase(); }
+
+/** Retire la syntaxe markdown des liens/images, garde juste le texte visible
+ *  — utilisé pour juger la longueur réelle d'une ligne (voir renderWodBlock). */
+function stripLinks(s){
+  return s.replace(/!\[([^\]]*)\]\([^)\s]+\)/g, '$1').replace(/\[([^\]]+)\]\([^)\s]+\)/g, '$1');
+}
 
 function esc(s){
   return String(s == null ? '' : s)
