@@ -107,8 +107,6 @@ input:focus{border-color:var(--orange)}
   font-size:20px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
   background:var(--c,var(--orange));color:#10192b;
 }
-.tv-day{font-family:'Bebas Neue',sans-serif;letter-spacing:.03em;text-transform:uppercase;font-size:34px;color:var(--ink)}
-.tv-card-date{color:var(--muted);font-size:16px}
 .tv-slide-body{flex:1;min-height:0;overflow:hidden}
 .doc-fallback{font-size:26px}
 
@@ -351,7 +349,7 @@ function isoWeekYear(d){
 
 function renderSlide(){
   const cards = S.tvCards;
-  let dateStr = new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+  let dateStr = new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   dateStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
   let dots = '';
@@ -382,8 +380,6 @@ function renderSlide(){
   h += '<div class="tv-slide" style="--c:'+c.disc.color+'">'
      + '<div class="tv-slide-top">'
      + '<span class="tv-pill" style="--c:'+c.disc.color+'">'+esc(c.label)+'</span>'
-     + '<span class="tv-day">'+esc(day.label)+'</span>'
-     + (day.date ? '<span class="tv-card-date">'+fmtNomDate(day.date)+'</span>' : '')
      + '</div>'
      + '<div class="tv-slide-body" id="tvBody">'+renderWodSection(body, c.disc)+'</div>'
      + '</div></div>';
@@ -512,10 +508,10 @@ const HIDDEN_SECTIONS = {
 
 /** Blocs jamais affichés, toutes disciplines confondues : pure commentaire
  *  de coach (ex. Gymnastics a des blocs entiers « Message du coach » /
- *  « Coaching tip — ... », pas juste des lignes isolées) — même esprit que
- *  la règle « pas de commentaires » du 2026-08-25, mais au niveau du bloc
- *  entier plutôt que de la ligne. */
-const ALWAYS_HIDDEN_SECTIONS = [/coaching tip/i, /message du coach/i];
+ *  « Coaching tip — ... », CrossFit a des « Note Coach Ron : » — pas juste
+ *  des lignes isolées) — même esprit que la règle « pas de commentaires »
+ *  du 2026-08-25, mais au niveau du bloc entier plutôt que de la ligne. */
+const ALWAYS_HIDDEN_SECTIONS = [/coaching tip/i, /message du coach/i, /note coach/i];
 
 function renderWodSection(bodyMd, disc){
   const lines = bodyMd.split(/\r?\n/);
