@@ -274,6 +274,10 @@ input[type=range].ci-slider-input::-moz-range-thumb{
 .plan-log-submit:active{transform:scale(.98);background:var(--orange-d)}
 .plan-log-submit:disabled{opacity:.55;pointer-events:none}
 .plan-video-hint{font-size:10.5px;color:var(--muted);margin:-4px 0 10px 2px;font-style:italic}
+.plan-log-badge{
+  background:rgba(234,141,73,.12);border:1px solid var(--orange);border-radius:9px;
+  padding:8px 11px;margin-bottom:10px;font-size:11px;color:var(--orange);font-weight:700;
+}
 
 @media(min-width:640px){ :root{--pad:22px} }
 </style>
@@ -751,6 +755,11 @@ const MAX_VIDEO_MB = 25;
 let planRefDate = new Date();
 let _planSeances = [];
 let _planActiveIdx = 0;
+let _planActiveWeek = null;
+let _planActiveYear = null;
+// Dernier log connu par exercice pour la semaine affichée — clé "séance|exercice".
+// Alimente le badge "déjà envoyé" + le pré-remplissage du commentaire.
+let _planLogs = {};
 
 function isoWeekOfDate(date){
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -795,11 +804,21 @@ function planGoToday(){ planRefDate = new Date(); loadPlan(); }
 async function loadPlan(){
   const box = $('#planContent');
   const { week, year } = isoWeekOfDate(planRefDate);
+  _planActiveWeek = week; _planActiveYear = year;
   const isCurrent = isSameIsoWeek({week,year}, isoWeekOfDate(new Date()));
   $('#planTodayLink').classList.toggle('hide', isCurrent);
   box.innerHTML = '<div class="spin"></div>';
   try{
-    const res = await api({ action:'indivPlan', token:S.token, week, year });
+    const [res, logsRes] = await Promise.all([
+      api({ action:'indivPlan', token:S.token, week, year }),
+      api({ action:'indivTrainingLogsForWeek', token:S.token, week, year }).catch(() => null)
+    ]);
+
+    _planLogs = {};
+    if(logsRes && logsRes.ok && logsRes.logs){
+      logsRes.logs.forEach(l => { _planLogs[l.seance + '|' + l.exercice] = l; });
+    }
+
     if(!res.ok || res.empty || !res.content){
       $('#planWeekLabel').textContent = (res && res.weekLabel) || weekLabelStr(week, year);
       box.innerHTML = '<div class="empty"><div class="big">📋</div>Pas de plan écrit pour cette semaine.<br>Demande à Coach Ron.</div>';
@@ -869,23 +888,46 @@ function pickSeance(idx){
   document.querySelectorAll('#planTabs .day').forEach((btn,i) => btn.classList.toggle('on', i === idx));
   renderSeanceDoc(idx);
 }
+// Un espace commentaire + vidéo PAR EXERCICE (### bloc), juste en dessous de
+// son contenu — mais UN SEUL bouton d'envoi tout en bas de la séance (Ron,
+// 2026-08-27). Au clic : chaque exercice rempli (commentaire et/ou vidéo)
+// est écrit dans le Sheet ENTRAINEMENT_LOGS (exercice + détails + commentaire
+// — pas la vidéo, elle part sur Drive) puis un seul message WhatsApp est
+// composé avec uniquement les exercices remplis (nom, détails du plan,
+// commentaire, lien vidéo si présent) et envoyé au coach.
 function renderSeanceDoc(idx){
   const s = _planSeances[idx];
   const box = $('#planSeanceDoc');
   if(!s || !box) return;
   box.innerHTML =
       '<div class="plan-doc-title">'+esc(s.mainTitle)+'</div>'
-    + '<div class="doc">' + s.blocs.map(b => '<h3>'+esc(b.title)+'</h3>'+renderBlocLines(b.raw)).join('') + '</div>'
-    + '<div class="plan-log">'
-    + '<textarea class="ci-textarea" id="planLogComment" placeholder="Ton ressenti sur cette séance (optionnel)..."></textarea>'
-    + '<label class="plan-log-video"><input type="file" accept="video/*" id="planLogFile" onchange="planLogFileChange()"><span id="planLogFileText">📹 Ajouter une vidéo</span></label>'
-    + '<div class="plan-video-hint">Quelques secondes suffisent (1 rep) · max '+MAX_VIDEO_MB+' Mo</div>'
-    + '<button type="button" class="plan-log-submit" id="planLogSubmitBtn" onclick="submitTrainingLog()">ENVOYER À COACH RON</button>'
-    + '</div>';
+    + s.blocs.map((b, bIdx) => {
+        const prior = _planLogs[s.title + '|' + b.title];
+        const badge = prior
+          ? '<div class="plan-log-badge">✓ Déjà envoyé à '+esc(fmtHHMM(prior.horodatage))+' · modification possible</div>'
+          : '';
+        const videoNote = (prior && prior.hasVideo)
+          ? '<div class="plan-video-hint">📹 Une vidéo a déjà été envoyée pour cet exercice — en ajouter une nouvelle la remplace.</div>'
+          : '';
+        const priorComment = prior ? esc(prior.comment || '') : '';
+        return '<div class="doc"><h3>'+esc(b.title)+'</h3>'+renderBlocLines(b.raw)+'</div>'
+          + '<div class="plan-log">'
+          + badge
+          + '<textarea class="ci-textarea" id="planLogComment_'+bIdx+'" placeholder="Ton ressenti sur cet exercice (optionnel)...">'+priorComment+'</textarea>'
+          + '<label class="plan-log-video"><input type="file" accept="video/*" id="planLogFile_'+bIdx+'" onchange="planLogFileChange('+bIdx+')"><span id="planLogFileText_'+bIdx+'">📹 Ajouter une vidéo</span></label>'
+          + videoNote
+          + '<div class="plan-video-hint">Quelques secondes suffisent (1 rep) · max '+MAX_VIDEO_MB+' Mo</div>'
+          + '</div>';
+      }).join('')
+    + '<button type="button" class="plan-log-submit" id="planLogSubmitBtn" onclick="submitAllTrainingLogs()">📲 ENVOYER À COACH RON</button>';
 }
-function planLogFileChange(){
-  const f = $('#planLogFile').files[0];
-  $('#planLogFileText').textContent = f ? ('✓ ' + f.name) : '📹 Ajouter une vidéo';
+function fmtHHMM(iso){
+  const d = new Date(iso);
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+function planLogFileChange(bIdx){
+  const f = $('#planLogFile_'+bIdx).files[0];
+  $('#planLogFileText_'+bIdx).textContent = f ? ('✓ ' + f.name) : '📹 Ajouter une vidéo';
 }
 function renderBlocLines(lines){
   let html = ''; let inList = false;
@@ -903,6 +945,16 @@ function inlineMd(s){
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>');
 }
+// Version texte brut (pas HTML) des lignes d'un bloc — pour le Sheet et le
+// message WhatsApp : liens gardés en clair "texte (url)" plutôt qu'en HTML.
+function blocDetailsText(lines){
+  return lines.map(l => l.trim()).filter(Boolean).map(l => {
+    let t = l.startsWith('- ') ? l.slice(2) : l;
+    t = t.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1');
+    t = t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '$1 ($2)');
+    return '• ' + t;
+  }).join('\n');
+}
 function fileToBase64(file){
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -911,31 +963,58 @@ function fileToBase64(file){
     reader.readAsDataURL(file);
   });
 }
-async function submitTrainingLog(){
-  const btn = $('#planLogSubmitBtn');
-  const commentEl = $('#planLogComment');
-  const fileInput = $('#planLogFile');
-  const comment = commentEl.value.trim();
-  const file = fileInput.files[0];
+async function submitAllTrainingLogs(){
   const s = _planSeances[_planActiveIdx];
-  if(!comment && !file){ showToast('Ajoute un commentaire ou une vidéo avant d\'envoyer', true); return; }
-  if(file && file.size > MAX_VIDEO_MB * 1024 * 1024){ showToast('Vidéo trop lourde (max '+MAX_VIDEO_MB+' Mo) — filme un extrait plus court', true); return; }
+  const btn = $('#planLogSubmitBtn');
+
+  const entries = [];
+  s.blocs.forEach((b, bIdx) => {
+    const commentEl = $('#planLogComment_'+bIdx);
+    const fileInput = $('#planLogFile_'+bIdx);
+    const comment = commentEl.value.trim();
+    const file = fileInput.files[0];
+    if(comment || file) entries.push({ bIdx, bloc:b, comment, file });
+  });
+  if(!entries.length){ showToast('Ajoute au moins un commentaire ou une vidéo avant d\'envoyer', true); return; }
+  for(const e of entries){
+    if(e.file && e.file.size > MAX_VIDEO_MB * 1024 * 1024){
+      showToast('Vidéo trop lourde sur "'+e.bloc.title+'" (max '+MAX_VIDEO_MB+' Mo)', true);
+      return;
+    }
+  }
 
   btn.disabled = true; btn.textContent = 'ENVOI...';
   try{
-    let videoBase64 = null, videoName = null, videoMime = null;
-    if(file){ videoBase64 = await fileToBase64(file); videoName = file.name; videoMime = file.type; }
-    const res = await api({ action:'indivTrainingLog', token:S.token, seance:s.title, comment, videoBase64, videoName, videoMime });
-    if(res.ok){
-      showToast('Envoyé à Coach Ron ✓');
-      btn.textContent = 'ENVOYÉ ✓';
-      commentEl.value = ''; fileInput.value = ''; $('#planLogFileText').textContent = '📹 Ajouter une vidéo';
-      setTimeout(() => { btn.disabled = false; btn.textContent = 'ENVOYER À COACH RON'; }, 2500);
-    } else throw new Error(res.error || 'Erreur serveur');
+    const results = [];
+    for(const e of entries){
+      let videoBase64 = null, videoName = null, videoMime = null;
+      if(e.file){ videoBase64 = await fileToBase64(e.file); videoName = e.file.name; videoMime = e.file.type; }
+      const details = blocDetailsText(e.bloc.raw);
+      const res = await api({ action:'indivTrainingLog', token:S.token, week:_planActiveWeek, year:_planActiveYear, seance:s.title, exercice:e.bloc.title, details, comment:e.comment, videoBase64, videoName, videoMime });
+      if(!res.ok) throw new Error(res.error || 'Erreur serveur');
+      results.push({ bloc:e.bloc, comment:e.comment, videoUrl: res.videoUrl || '' });
+    }
+
+    let m = '🏋️ *Log entraînement* — ' + (S.user ? S.user.name : '') + ' — ' + s.title + '\n\n';
+    results.forEach(r => {
+      m += '*' + r.bloc.title + '*\n';
+      m += blocDetailsText(r.bloc.raw) + '\n';
+      if(r.comment) m += '💬 ' + r.comment + '\n';
+      if(r.videoUrl) m += '📹 ' + r.videoUrl + '\n';
+      m += '\n';
+    });
+
+    entries.forEach(e => {
+      $('#planLogComment_'+e.bIdx).value = '';
+      $('#planLogFile_'+e.bIdx).value = '';
+      $('#planLogFileText_'+e.bIdx).textContent = '📹 Ajouter une vidéo';
+    });
+
+    window.location.href = 'https://wa.me/' + COACH_WHATSAPP + '?text=' + encodeURIComponent(m);
   }catch(err){
     console.warn('Envoi training log échoué:', err);
     showToast('Échec de l\'envoi — réessaie', true);
-    btn.disabled = false; btn.textContent = 'ENVOYER À COACH RON';
+    btn.disabled = false; btn.textContent = '📲 ENVOYER À COACH RON';
   }
 }
 
