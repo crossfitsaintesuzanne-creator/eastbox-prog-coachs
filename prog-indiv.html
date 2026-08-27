@@ -966,6 +966,14 @@ function inlineMd(s){
 }
 // Version texte brut (pas HTML) des lignes d'un bloc — pour le Sheet et le
 // message WhatsApp : liens gardés en clair "texte (url)" plutôt qu'en HTML.
+// Assainit un texte destiné à un message WhatsApp : remplace les tirets
+// longs (— U+2014, – U+2013) par un tiret simple. Ils s'affichent bien chez
+// Ron, mais ils font partie des rares caractères non-ASCII venant des .md de
+// plan, et le tiret simple est visuellement équivalent — autant supprimer la
+// variable (2026-08-27, voir le commentaire dans submitAllTrainingLogs).
+function waSafe(s){
+  return String(s == null ? '' : s).replace(/[–—]/g, '-');
+}
 // Sert au message WhatsApp ET au Sheet (même texte pour les deux) — liens
 // hypertexte retirés (Ron, 2026-08-27) : juste le texte du lien, pas l'URL.
 function blocDetailsText(lines){
@@ -1065,16 +1073,36 @@ async function submitAllTrainingLogs(){
     // La ligne vidéo reste sans emoji : aucun pictogramme vidéo n'a pu être
     // vérifié sur son téléphone, et l'URL est déjà mise en évidence par
     // WhatsApp (lien bleu). Ne rien ajouter ici sans preuve par capture.
-    let m = '📋 *Log entraînement* — ' + (S.user ? S.user.name : '') + ' — ' + s.title + '\n\n';
-    results.forEach(r => {
-      m += '*' + r.bloc.title + '*\n';
-      m += blocDetailsText(r.bloc.raw) + '\n';
-      if(r.comment) m += '🔥 _Ressenti :_ ' + r.comment + '\n';
-      r.videoUrls.forEach((u, i) => {
-        m += '_Vidéo'+(r.videoUrls.length > 1 ? ' '+(i+1) : '')+' :_ ' + u + '\n';
+    // Construction du message en 2 passes (2026-08-27). Constat après 4
+    // allers-retours avec Ron : dans le message long de la SÉANCE 1, les
+    // emoji arrivent en tofu sur son iPhone alors que le texte (accents,
+    // tiret long) arrive intact — et le MÊME emoji passe très bien dans les
+    // messages courts (séances 2 et 3, Suivi Quotidien). Ce ne sont donc ni
+    // les emoji, ni le fichier, ni le `@` (test « Push seul » de Ron : OK).
+    // Mesures : séance 2 = 588 car. d'URL OK, séance 3 = 633 OK,
+    // Suivi Quotidien = 1084 OK, séance 1 = 1107 CASSÉ.
+    // Les suspects restants (longueur, tiret long `—`, `+`) proviennent tous
+    // du détail du plan. D'où : on assainit le tiret long, et si l'URL
+    // dépasse un seuil prudent on renvoie le message sans le détail du plan
+    // (que Ron a écrit lui-même et qui reste consigné dans le Sheet), en
+    // gardant l'essentiel : l'exercice, le ressenti, la vidéo.
+    const buildMsg = withDetails => {
+      let out = '📋 *Log entraînement* — ' + (S.user ? S.user.name : '') + ' — ' + waSafe(s.title) + '\n\n';
+      results.forEach(r => {
+        out += '*' + waSafe(r.bloc.title) + '*\n';
+        if(withDetails) out += waSafe(blocDetailsText(r.bloc.raw)) + '\n';
+        if(r.comment) out += '🔥 _Ressenti :_ ' + waSafe(r.comment) + '\n';
+        r.videoUrls.forEach((u, i) => {
+          out += '_Vidéo'+(r.videoUrls.length > 1 ? ' '+(i+1) : '')+' :_ ' + u + '\n';
+        });
+        out += '\n';
       });
-      m += '\n';
-    });
+      return out;
+    };
+    const WA_URL_MAX = 1000; // < 1084, la plus longue URL vue fonctionner chez Ron
+    const waUrl = txt => 'https://wa.me/' + COACH_WHATSAPP + '?text=' + encodeURIComponent(txt);
+    let m = buildMsg(true);
+    if(waUrl(m).length > WA_URL_MAX) m = buildMsg(false);
 
     entries.forEach(e => {
       $('#planLogComment_'+e.bIdx).value = '';
@@ -1082,7 +1110,7 @@ async function submitAllTrainingLogs(){
       $('#planLogFileText_'+e.bIdx).textContent = '📹 Ajouter une ou plusieurs vidéos';
     });
 
-    window.location.href = 'https://wa.me/' + COACH_WHATSAPP + '?text=' + encodeURIComponent(m);
+    window.location.href = waUrl(m);
   }catch(err){
     console.warn('Envoi training log échoué:', err);
     showToast('Échec de l\'envoi — réessaie', true);
