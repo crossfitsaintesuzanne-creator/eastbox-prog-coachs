@@ -1051,20 +1051,25 @@ async function submitAllTrainingLogs(){
       results.push({ bloc:e.bloc, comment:e.comment, videoUrls });
     }
 
-    // 📋 repris tel quel du message Suivi Quotidien (confirmé bien affiché
-    // par Ron) ; 🏋️/💬/📹 retirés (2026-08-27) — s'affichaient en tofu
-    // (losange noir + point d'interrogation) sur WhatsApp iOS dans le
-    // message Programme d'entraînement, alors que les mêmes emoji de base
-    // (🌙💧⚡🔥🧠) passent très bien dans le message Suivi Quotidien. Cause
-    // exacte non isolée à distance — plutôt que de deviner quel emoji est
-    // fautif, on retire ceux qui posaient problème et on les remplace par de
-    // l'italique WhatsApp (_texte_), déjà confirmé fiable (gras/puces le
-    // sont déjà dans les deux messages).
+    // Emoji : n'utiliser QUE ceux vus s'afficher correctement sur l'iPhone
+    // de Ron, constatés sur ses propres captures WhatsApp — pas ceux qu'on
+    // suppose corrects. Historique (3 allers-retours, 2026-08-27) :
+    //   📋 U+1F4CB  OK   (en-tête Suivi Quotidien, + en-tête entraînement
+    //                     séances 2 et 3 de la capture du 27/08 23:18-23:19)
+    //   🔥 U+1F525  OK   (« RPE physique » du Suivi Quotidien)
+    //   🏋️ U+1F3CB+FE0F  TOFU (losange noir + « ? ») — en-tête entraînement
+    //                     séance 1, capture du 27/08 ; j'avais cru à tort
+    //                     qu'il passait en le déduisant d'une capture du
+    //                     Suivi Quotidien, sans vérification réelle.
+    //   💬 U+1F4AC / 📹 U+1F4F9  TOFU (capture du 27/08 18:34)
+    // La ligne vidéo reste sans emoji : aucun pictogramme vidéo n'a pu être
+    // vérifié sur son téléphone, et l'URL est déjà mise en évidence par
+    // WhatsApp (lien bleu). Ne rien ajouter ici sans preuve par capture.
     let m = '📋 *Log entraînement* — ' + (S.user ? S.user.name : '') + ' — ' + s.title + '\n\n';
     results.forEach(r => {
       m += '*' + r.bloc.title + '*\n';
       m += blocDetailsText(r.bloc.raw) + '\n';
-      if(r.comment) m += '_Ressenti :_ ' + r.comment + '\n';
+      if(r.comment) m += '🔥 _Ressenti :_ ' + r.comment + '\n';
       r.videoUrls.forEach((u, i) => {
         m += '_Vidéo'+(r.videoUrls.length > 1 ? ' '+(i+1) : '')+' :_ ' + u + '\n';
       });
