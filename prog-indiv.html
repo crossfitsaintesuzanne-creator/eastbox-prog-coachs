@@ -712,13 +712,22 @@ function sendBilanWhatsApp(){
   m += '*D) Mot pour le coach*\n' + (ci.motCoach.trim() || '—');
 
   // Sync Sheets en parallèle, fire-and-forget, AVANT la navigation WhatsApp.
-  // keepalive + mode:'no-cors' : sur iOS Safari, sans ça la requête serait
-  // annulée par la navigation qui suit immédiatement (même principe que le
-  // tracker fusionné).
+  // keepalive : la requête survit à la navigation qui suit immédiatement
+  // (sans ça, elle serait annulée sur iOS Safari). Content-Type text/plain
+  // (pas application/json) : même raison que dans api() plus haut — évite le
+  // préflight CORS, qu'Apps Script ne gère pas nativement. Repris ici SANS
+  // mode:'no-cors' (contrairement à une 1ère version) : 'no-cors' interdit
+  // tout header hors d'une courte liste fixe (Content-Type n'en fait partie
+  // qu'avec les valeurs text/plain, application/x-www-form-urlencoded ou
+  // multipart/form-data) — la combiner avec un header hors-liste fait
+  // échouer l'envoi silencieusement, requête jamais partie (bug identifié
+  // 2026-08-27 : le message WhatsApp partait bien, mais rien n'arrivait
+  // jamais dans le Sheet). On se moque de lire la réponse (fire-and-forget),
+  // donc le mode CORS normal suffit — c'est le même que api(), déjà éprouvé.
   if(S.token){
     try{
       fetch(API, {
-        method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'},
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
         body: JSON.stringify(Object.assign({ action:'indivBilanSubmit', token:S.token }, ci, {
           duration: hasTraining ? ci.duration : 0,
           rpe: hasTraining ? ci.rpe : ''
