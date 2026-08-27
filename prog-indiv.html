@@ -120,6 +120,161 @@ input:focus{border-color:var(--orange)}
 }
 @keyframes sp{to{transform:rotate(360deg)}}
 
+/* ---------- Suivi Quotidien ---------- */
+.ci-section{margin-bottom:26px}
+.ci-section-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.02em;color:var(--orange)}
+.ci-section-sub{font-size:13px;font-weight:700;color:var(--ink);margin-top:2px}
+.ci-section-desc{font-size:12px;color:var(--muted);margin:4px 0 14px;line-height:1.5}
+.ci-card{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
+.ci-label{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--ink)}
+.ci-opt{font-weight:400;color:var(--muted);font-size:11px}
+.ci-input,.ci-textarea{
+  width:100%;padding:11px 12px;border-radius:10px;
+  background:var(--navy);border:1.5px solid var(--line);color:var(--ink);
+  outline:none;font-size:14px;transition:border-color .15s;
+}
+.ci-input:focus,.ci-textarea:focus{border-color:var(--orange)}
+.ci-textarea{min-height:80px;resize:vertical;font-family:inherit}
+.ci-pills{display:flex;flex-wrap:wrap;gap:8px}
+.ci-pill{
+  padding:9px 14px;border-radius:999px;background:var(--navy);border:1.5px solid var(--line);
+  font-size:12.5px;font-weight:700;color:var(--muted);transition:background .15s,color .15s,border-color .15s;
+}
+.ci-pill.on{background:var(--orange);color:#10192b;border-color:var(--orange)}
+.ci-pill.ci-multi{
+  flex-direction:column;align-items:flex-start;text-align:left;gap:1px;
+  flex:1 1 150px;padding:10px 14px;
+}
+.ci-pill.ci-multi b{font-size:12px;display:block}
+.ci-pill.ci-multi span{font-size:11px;font-weight:500;opacity:.8}
+.ci-hydra{display:flex;align-items:center;gap:14px}
+.ci-hydra-val{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--ink);min-width:64px;text-align:center}
+.ci-hydra-btn{
+  width:44px;height:44px;border-radius:12px;background:var(--navy);border:1.5px solid var(--line);
+  font-size:16px;font-weight:800;color:var(--ink);flex:0 0 auto;
+}
+.ci-hydra-btn.on{background:var(--orange);color:#10192b;border-color:var(--orange);width:auto;padding:0 14px;font-size:13px}
+.ci-submit{
+  width:100%;padding:16px;border-radius:14px;margin:8px 0 40px;
+  background:#25D366;color:#0b3d1f;font-weight:800;font-size:14px;
+  letter-spacing:.03em;text-transform:uppercase;
+  box-shadow:0 10px 30px rgba(37,211,102,.25);
+  transition:transform .1s;
+}
+.ci-submit:active{transform:scale(.98)}
+.ci-banner{
+  background:rgba(234,141,73,.12);border:1px solid var(--orange);border-radius:12px;
+  padding:12px 14px;margin-bottom:18px;text-align:center;font-size:12px;
+  color:var(--orange);font-weight:700;letter-spacing:.02em;
+}
+
+/* ---------- Widgets repris du tracker fusionné (compte/emoji/segmented/slider) ---------- */
+.ci-counter{display:flex;align-items:center;justify-content:center;gap:18px;background:var(--navy);border:1.5px solid var(--line);border-radius:12px;padding:14px}
+.ci-counter-btn{width:40px;height:40px;border-radius:10px;background:var(--navy-3);border:1px solid var(--line);font-size:18px;font-weight:800;color:var(--ink);display:grid;place-items:center}
+.ci-counter-btn:active{transform:scale(.94)}
+.ci-counter-val{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--ink);min-width:70px;text-align:center}
+
+.ci-emoji-group{display:grid;gap:8px}
+.ci-emoji-group.cols-4{grid-template-columns:repeat(4,1fr)}
+.ci-emoji-group.cols-3{grid-template-columns:repeat(3,1fr)}
+.ci-emoji-btn{background:var(--navy);border:1.5px solid var(--line);border-radius:12px;padding:12px 6px;text-align:center;transition:all .15s}
+.ci-emoji-btn.on{border-color:var(--orange);background:rgba(234,141,73,.12)}
+.ci-emoji-btn .e{font-size:22px;display:block;margin-bottom:4px}
+.ci-emoji-btn .l{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.ci-emoji-btn.on .l{color:var(--orange)}
+.ci-emoji-btn:active{transform:scale(.96)}
+
+.ci-segmented{background:var(--navy);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px}
+.ci-segmented-val{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--ink);margin-bottom:8px}
+.ci-segmented-val span{color:var(--muted);font-size:13px;margin-left:2px}
+.ci-segmented-bars{display:flex;gap:6px}
+.ci-segmented-bar{flex:1;height:14px;background:var(--navy-3);border:1px solid var(--line);border-radius:4px;cursor:pointer;transition:all .1s}
+.ci-segmented-bar.on{background:var(--orange);border-color:var(--orange)}
+.ci-segmented-bar:active{transform:scale(.95)}
+
+.ci-slider-wrap{background:var(--navy);border:1.5px solid var(--line);border-radius:12px;padding:16px 14px 10px}
+.ci-slider-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+.ci-slider-val{font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:var(--ink)}
+.ci-slider-val span{font-size:13px;color:var(--muted);margin-left:2px}
+.ci-slider-track{position:relative;height:6px;background:var(--navy-3);border-radius:3px;margin:0 6px}
+.ci-slider-fill{position:absolute;left:0;top:0;height:100%;background:var(--orange);border-radius:3px}
+input[type=range].ci-slider-input{
+  position:absolute;top:-10px;left:-6px;right:-6px;width:calc(100% + 12px);height:26px;
+  -webkit-appearance:none;appearance:none;background:transparent;outline:none;margin:0;padding:0;
+}
+input[type=range].ci-slider-input::-webkit-slider-thumb{
+  -webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+  background:var(--orange);cursor:pointer;border:3px solid var(--navy);box-shadow:0 2px 8px rgba(234,141,73,.5);
+}
+input[type=range].ci-slider-input::-moz-range-thumb{
+  width:22px;height:22px;border-radius:50%;
+  background:var(--orange);cursor:pointer;border:3px solid var(--navy);box-shadow:0 2px 8px rgba(234,141,73,.5);
+}
+
+.ci-conditional{display:none;margin-top:0}
+.ci-conditional.on{display:block;animation:ciFadeIn .2s ease-out}
+@keyframes ciFadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
+.ci-toast{
+  position:fixed;bottom:24px;left:16px;right:16px;max-width:540px;margin:0 auto;
+  background:var(--navy-2);border:1px solid var(--orange);color:var(--ink);
+  padding:14px 16px;border-radius:12px;font-size:13px;text-align:center;z-index:200;
+  transform:translateY(20px);opacity:0;pointer-events:none;transition:all .2s;font-weight:600;
+}
+.ci-toast.show{transform:translateY(0);opacity:1}
+.ci-toast.error{border-color:#e06666}
+
+/* ---------- Programme d'entraînement (plan hebdo + logging séance) ---------- */
+.plan-week-nav{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);
+  padding:12px 14px;margin-bottom:12px;
+}
+.plan-week-nav-btn{width:36px;height:36px;background:var(--navy-3);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-size:16px;display:flex;align-items:center;justify-content:center}
+.plan-week-label{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.5px;text-align:center;color:var(--ink)}
+.plan-week-today{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--orange);text-align:center;margin-top:2px;text-decoration:underline}
+.plan-history-link{text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--muted);margin-bottom:16px;text-decoration:underline;text-underline-offset:3px}
+.plan-history-back{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--orange);margin-bottom:14px;text-decoration:underline}
+.week{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);margin-bottom:10px;overflow:hidden}
+.week-head{width:100%;display:flex;align-items:center;gap:12px;padding:14px 15px;text-align:left}
+.week-num{font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;min-width:52px;color:var(--orange)}
+.week-meta{flex:1;min-width:0}
+.week-meta .t{display:block;font-weight:600;font-size:14px;color:var(--ink)}
+.week.current{border-color:var(--orange);box-shadow:0 0 0 1px var(--orange) inset}
+.chev{color:var(--muted);font-size:13px}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;background:var(--orange);color:#10192b}
+.days{display:flex;gap:7px;overflow-x:auto;padding:2px 0 14px;scrollbar-width:none}
+.days::-webkit-scrollbar{display:none}
+.day{flex:0 0 auto;padding:9px 15px;border-radius:999px;background:var(--navy-2);border:1px solid var(--line);font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.day.on{background:var(--orange);color:#10192b;border-color:var(--orange)}
+.doc{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);padding:20px 18px}
+.doc h1,.doc h2{font-family:'Bebas Neue',sans-serif;font-weight:400;letter-spacing:.02em;color:var(--orange);line-height:1.12;margin:26px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.doc h1{font-size:29px}.doc h2{font-size:24px}
+.doc h3{font-size:14px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink);margin:22px 0 9px}
+.doc h4{font-size:13px;color:var(--muted);margin:16px 0 7px;letter-spacing:.06em;text-transform:uppercase}
+.doc>:first-child{margin-top:0}
+.doc p{margin:0 0 11px;color:var(--ink)}
+.doc ul,.doc ol{margin:0 0 13px;padding-left:21px}
+.doc li{margin-bottom:5px;color:var(--ink)}
+.doc li::marker{color:var(--orange)}
+.doc strong{color:#fff}
+.doc em{color:var(--muted);font-style:italic}
+.doc hr{border:0;border-top:1px solid var(--line);margin:22px 0}
+.doc blockquote{margin:0 0 13px;padding:10px 14px;border-left:3px solid var(--orange);background:rgba(234,141,73,.08);border-radius:0 9px 9px 0;color:#f0d9c3}
+.doc code{font-family:'JetBrains Mono',monospace;font-size:.87em;background:var(--navy);padding:2px 6px;border-radius:5px;color:var(--orange)}
+.doc pre{background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:13px;overflow-x:auto;margin:0 0 13px}
+.doc pre code{background:none;padding:0;color:var(--ink)}
+.doc a{color:var(--orange)}
+.doc img{max-width:100%;border-radius:10px}
+.plan-doc-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.5px;color:var(--ink);margin-bottom:12px}
+.plan-log{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:12px}
+.plan-log-video{display:flex;align-items:center;gap:8px;background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0 10px;font-size:12px;color:var(--muted)}
+.plan-log-video input{display:none}
+.plan-log-submit{width:100%;background:var(--orange);color:#10192b;border:none;padding:12px;border-radius:10px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.2px;font-weight:700;text-transform:uppercase;transition:transform .1s,background .15s}
+.plan-log-submit:active{transform:scale(.98);background:var(--orange-d)}
+.plan-log-submit:disabled{opacity:.55;pointer-events:none}
+.plan-video-hint{font-size:10.5px;color:var(--muted);margin:-4px 0 10px 2px;font-style:italic}
+
 @media(min-width:640px){ :root{--pad:22px} }
 </style>
 </head>
@@ -159,6 +314,7 @@ input:focus{border-color:var(--orange)}
     </div>
     <div id="tabContent"></div>
   </main>
+  <div class="ci-toast" id="ciToast"></div>
 </div>
 
 <script>
@@ -222,29 +378,40 @@ function restore(){
   }catch(_){ return false; }
 }
 
-function start(){
+async function start(){
   $('#login').classList.add('hide');
   $('#app').classList.remove('hide');
   $('#whoName').textContent = S.user.name;
+  await checkTodayBilan();
   showTab('quotidien');
 }
 
+/** Relit le dernier bilan envoyé aujourd'hui (s'il existe) pour pré-remplir
+ *  le formulaire et passer le bouton en "Modifier mon bilan" — même
+ *  principe que checkTodaySubmission() du tracker fusionné. */
+async function checkTodayBilan(){
+  try{
+    const res = await api({ action:'indivBilanToday', token:S.token });
+    if(res.ok && res.found){
+      Object.assign(ci, res.data);
+      ['reveil','stress','duration','rpe','energieSoir','rpeCognitif','hydraL'].forEach(k => {
+        if(ci[k] !== '' && ci[k] != null) ci[k] = Number(ci[k]);
+      });
+      if(!Array.isArray(ci.activites)) ci.activites = [];
+      const d = new Date(res.horodatage);
+      S.bilanTodaySubmittedAt = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+      S.isUpdate = true;
+    }
+  }catch(err){ console.warn('checkTodayBilan failed:', err); }
+}
+
 /* ===========================================================================
-   ONGLETS — coquille pour l'instant : chaque onglet affiche un état
-   « à venir » explicite plutôt qu'un formulaire à moitié fait. La saisie
-   réelle (sauvegarde serveur) arrivera dans une prochaine itération.
+   ONGLETS — « Suivi Quotidien » et « Programme d'entraînement » sont de
+   vrais écrans (voir plus bas). « Suivi Nutrition » reste une coquille pour
+   l'instant : état « à venir » explicite plutôt qu'un formulaire à moitié
+   fait, en attendant la prochaine itération.
    =========================================================================== */
 const TABS = {
-  quotidien: {
-    icon: '📋',
-    title: 'Suivi Quotidien',
-    text: 'Ici tu pourras bientôt enregistrer ton ressenti du jour, ton poids, ton sommeil et la séance réalisée.'
-  },
-  programme: {
-    icon: '🏋️',
-    title: "Programme d'entraînement",
-    text: 'Ton programme personnalisé s\'affichera ici, comme le reste de l\'appli EastBox.'
-  },
   nutrition: {
     icon: '🍽️',
     title: 'Suivi Nutrition',
@@ -257,6 +424,8 @@ function showTab(name){
   document.querySelectorAll('.tab-btn').forEach(b => {
     b.classList.toggle('on', b.dataset.tab === name);
   });
+  if(name === 'quotidien'){ renderQuotidien(); return; }
+  if(name === 'programme'){ renderProgramme(); return; }
   const t = TABS[name];
   $('#tabContent').innerHTML =
       '<div class="empty">'
@@ -264,6 +433,501 @@ function showTab(name){
     + '<b style="display:block;color:var(--ink);font-size:16px;margin-bottom:8px">'+esc(t.title)+'</b>'
     + '<p>'+esc(t.text)+'</p>'
     + '</div>';
+}
+
+function showToast(message, isError){
+  const t = $('#ciToast');
+  t.textContent = message;
+  t.classList.toggle('error', !!isError);
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+/* ===========================================================================
+   SUIVI QUOTIDIEN — formulaire complet (spec donnée par Ron, 2026-08-26).
+   Pas de sauvegarde serveur pour cette itération : le bilan est envoyé
+   directement en WhatsApp au coach (bouton en bas), qui reçoit le message
+   déjà formaté. Les champs texte lisent/écrivent directement dans `ci` pour
+   ne rien perdre si le client change d'onglet et revient.
+   =========================================================================== */
+const COACH_WHATSAPP = '262693200874';
+
+const CI_OPTIONS = {
+  tabac:     ['Je ne fume pas', '0', '1-2', '3-4', '5'],
+  cycle:     ['FOLLICULAIRE', 'OVULATION', 'LUTÉALE', 'RÈGLES', 'NON SUIVI'],
+  activites: [
+    { v:'coach',  label:'PROG COACH RON',      sub:'Séance individualisée' },
+    { v:'salle',  label:'PROG SALLE EASTBOX',  sub:'Séance collective' },
+    { v:'repos',  label:'REST DAY',            sub:'Repos' },
+    { v:'autres', label:'AUTRES',              sub:'À détailler' }
+  ]
+};
+
+const CI_EMOJI = {
+  sommeilQ:  [ {v:'MAUVAIS',e:'😪'}, {v:'MOYENNE',e:'😐'}, {v:'BONNE',e:'🙂'}, {v:'TOP',e:'😄'} ],
+  nutrition: [ {v:'Hors cadre',e:'🍔'}, {v:'Correcte',e:'🥖'}, {v:'Carrée',e:'🥗'} ]
+};
+
+// Valeurs par défaut alignées sur le tracker fusionné (7h de sommeil, formes
+// à 3/5, stress à 5/10... — un curseur pré-positionné plutôt qu'à zéro,
+// l'athlète ajuste plutôt que de tout renseigner depuis rien).
+let ci = {
+  avant:'', sommeilH:7, sommeilQ:null, reveil:3, douleurs:'',
+  nutrition:null, hydraL:0, stress:5, tabac:null, cycle:null,
+  activites:[], activitesAutre:'', duration:60, rpe:7,
+  energieSoir:3, rpeCognitif:5, motCoach:''
+};
+
+function ciPillGroup(groupKey, options){
+  const current = ci[groupKey];
+  return '<div class="ci-pills">' + options.map(val => {
+    const on = current === val ? ' on' : '';
+    return '<button type="button" class="ci-pill'+on+'" onclick="ciPillClick(this,\''+groupKey+'\',\''+val.replace(/'/g,"\\'")+'\')">'+esc(val)+'</button>';
+  }).join('') + '</div>';
+}
+
+function ciPillClick(btn, groupKey, val){
+  const already = btn.classList.contains('on');
+  btn.parentElement.querySelectorAll('.ci-pill').forEach(b => b.classList.remove('on'));
+  if(already){ ci[groupKey] = null; }
+  else { btn.classList.add('on'); ci[groupKey] = val; }
+}
+
+function ciActiviteClick(btn, val){
+  btn.classList.toggle('on');
+  const i = ci.activites.indexOf(val);
+  if(btn.classList.contains('on')){ if(i < 0) ci.activites.push(val); }
+  else if(i >= 0){ ci.activites.splice(i, 1); }
+  const detail = $('#ciAutresDetail');
+  if(detail) detail.classList.toggle('hide', !ci.activites.includes('autres'));
+  const hasTraining = ci.activites.some(a => a !== 'repos');
+  const block = $('#ciTrainingBlock');
+  if(block) block.classList.toggle('on', hasTraining);
+}
+
+function ciHydraAdd(delta){
+  ci.hydraL = Math.max(0, Math.round((ci.hydraL + delta) * 2) / 2);
+  $('#ciHydraVal').textContent = ci.hydraL.toFixed(1) + ' L';
+}
+
+function ciCounter(){
+  return '<div class="ci-card"><div class="ci-label">🌙 Sommeil <span class="ci-opt">Combien d\'heures ?</span></div>'
+    + '<div class="ci-counter">'
+    + '<button type="button" class="ci-counter-btn" onclick="ciCounterAdd(-0.5)">−</button>'
+    + '<div class="ci-counter-val" id="ciSommeilHVal">'+ci.sommeilH+'h</div>'
+    + '<button type="button" class="ci-counter-btn" onclick="ciCounterAdd(0.5)">+</button>'
+    + '</div></div>';
+}
+function ciCounterAdd(delta){
+  ci.sommeilH = Math.max(3, Math.min(12, ci.sommeilH + delta));
+  $('#ciSommeilHVal').textContent = ci.sommeilH + 'h';
+}
+
+function ciEmojiGroup(groupKey){
+  const opts = CI_EMOJI[groupKey];
+  const current = ci[groupKey];
+  return '<div class="ci-emoji-group cols-'+opts.length+'">' + opts.map(o => {
+    const on = current === o.v ? ' on' : '';
+    return '<button type="button" class="ci-emoji-btn'+on+'" onclick="ciEmojiClick(this,\''+groupKey+'\',\''+o.v.replace(/'/g,"\\'")+'\')"><span class="e">'+o.e+'</span><span class="l">'+esc(o.v)+'</span></button>';
+  }).join('') + '</div>';
+}
+function ciEmojiClick(btn, groupKey, val){
+  const already = btn.classList.contains('on');
+  btn.parentElement.querySelectorAll('.ci-emoji-btn').forEach(b => b.classList.remove('on'));
+  if(already){ ci[groupKey] = null; }
+  else { btn.classList.add('on'); ci[groupKey] = val; }
+}
+
+function ciSegmented(icon, label, helper, key, max){
+  const val = ci[key];
+  let bars = '';
+  for(let i = 1; i <= max; i++){
+    bars += '<div class="ci-segmented-bar'+(i <= val ? ' on' : '')+'" onclick="ciSegmentedClick(\''+key+'\','+i+')"></div>';
+  }
+  return '<div class="ci-card"><div class="ci-label">'+icon+' '+esc(label)+(helper ? ' <span class="ci-opt">'+esc(helper)+'</span>' : '')+'</div>'
+    + '<div class="ci-segmented"><div class="ci-segmented-val" id="ciSegVal_'+key+'">'+val+'<span>/'+max+'</span></div>'
+    + '<div class="ci-segmented-bars" id="ciSegBars_'+key+'">'+bars+'</div></div></div>';
+}
+function ciSegmentedClick(key, val){
+  ci[key] = val;
+  $('#ciSegVal_'+key).innerHTML = val + '<span>/'+$('#ciSegBars_'+key).children.length+'</span>';
+  document.querySelectorAll('#ciSegBars_'+key+' .ci-segmented-bar').forEach((b,i) => b.classList.toggle('on', i < val));
+}
+
+function ciSliderPlain(icon, label, helper, key, min, max, denom){
+  const val = ci[key];
+  const pct = ((val - min) / (max - min)) * 100;
+  return '<div class="ci-card"><div class="ci-label">'+icon+' '+esc(label)+(helper ? ' <span class="ci-opt">'+esc(helper)+'</span>' : '')+'</div>'
+    + '<div class="ci-slider-wrap">'
+    + '<div class="ci-slider-top"><div class="ci-slider-val" id="ciVal_'+key+'">'+val+'<span>/'+denom+'</span></div><div class="ci-opt">Glisse pour ajuster</div></div>'
+    + '<div class="ci-slider-track"><div class="ci-slider-fill" id="ciFill_'+key+'" style="width:'+pct+'%"></div>'
+    + '<input type="range" class="ci-slider-input" min="'+min+'" max="'+max+'" step="1" value="'+val+'" oninput="ciSliderPlainInput(this,\''+key+'\','+denom+')"></div>'
+    + '</div></div>';
+}
+function ciSliderPlainInput(input, key, denom){
+  const v = Number(input.value);
+  ci[key] = v;
+  $('#ciVal_'+key).innerHTML = v + '<span>/'+denom+'</span>';
+  const min = Number(input.min), max = Number(input.max);
+  $('#ciFill_'+key).style.width = ((v - min) / (max - min) * 100) + '%';
+}
+
+function formatDuration(min){
+  if(min === 0) return '0min';
+  if(min < 60) return min + 'min';
+  const h = Math.floor(min / 60), m = min % 60;
+  return h + 'h' + (m === 0 ? '00' : (m < 10 ? '0'+m : m));
+}
+function ciSliderDuration(){
+  const val = ci.duration;
+  const pct = (val / 180) * 100;
+  return '<div class="ci-card"><div class="ci-label">⏱️ Temps total d\'entraînement <span class="ci-opt">Volume du jour</span></div>'
+    + '<div class="ci-slider-wrap">'
+    + '<div class="ci-slider-top"><div class="ci-slider-val" id="ciVal_duration">'+formatDuration(val)+'</div><div class="ci-opt">Glisse pour ajuster</div></div>'
+    + '<div class="ci-slider-track"><div class="ci-slider-fill" id="ciFill_duration" style="width:'+pct+'%"></div>'
+    + '<input type="range" class="ci-slider-input" min="0" max="180" step="5" value="'+val+'" oninput="ciSliderDurationInput(this)"></div>'
+    + '</div></div>';
+}
+function ciSliderDurationInput(input){
+  const v = Number(input.value);
+  ci.duration = v;
+  $('#ciVal_duration').textContent = formatDuration(v);
+  $('#ciFill_duration').style.width = ((v / 180) * 100) + '%';
+}
+
+function renderQuotidien(){
+  const showCycle = !!(S.user && S.user.showCyclePhase);
+  const activitesHtml = CI_OPTIONS.activites.map(a => {
+    const on = ci.activites.includes(a.v) ? ' on' : '';
+    return '<button type="button" class="ci-pill ci-multi'+on+'" onclick="ciActiviteClick(this,\''+a.v+'\')">'
+         + '<b>'+esc(a.label)+'</b><span>'+esc(a.sub)+'</span></button>';
+  }).join('');
+  const hasTraining = ci.activites.some(a => a !== 'repos');
+  const banner = S.isUpdate
+    ? '<div class="ci-banner">✓ Bilan déjà envoyé à '+esc(S.bilanTodaySubmittedAt || '')+' · modification possible</div>'
+    : '';
+
+  $('#tabContent').innerHTML = banner
+    + '<div class="ci-section">'
+    + '<div class="ci-section-title">Avant tout</div>'
+    + '<div class="ci-section-desc">Je coache des humains, pas des machines. Stress, sommeil pourri, motivation, un truc perso... dis-le moi.</div>'
+    + '<textarea class="ci-textarea" placeholder="Optionnel — ce que tu veux que je sache avant de commencer..." oninput="ci.avant=this.value">'+esc(ci.avant)+'</textarea>'
+    + '</div>'
+
+    + '<div class="ci-section">'
+    + '<div class="ci-section-title">Bilan journée</div>'
+    + '<div class="ci-section-sub">La récup &amp; le quotidien</div>'
+    + '<div class="ci-section-desc">L\'état de la machine avant d\'attaquer.</div>'
+
+    + ciCounter()
+    + '<div class="ci-card"><div class="ci-label">💤 Qualité du sommeil</div>'+ciEmojiGroup('sommeilQ')+'</div>'
+    + ciSegmented('☀️', 'Forme au réveil', 'Comment tu te lèves ?', 'reveil', 5)
+
+    + '<div class="ci-card"><div class="ci-label">🩹 Douleurs / bobos <span class="ci-opt">(optionnel)</span></div>'
+    + '<input type="text" class="ci-input" placeholder="ex. épaule, poignet, RAS..." value="'+esc(ci.douleurs)+'" oninput="ci.douleurs=this.value"></div>'
+
+    + '<div class="ci-card"><div class="ci-label">🍴 Nutrition — Comment tu as mangé ?</div>'+ciEmojiGroup('nutrition')+'</div>'
+
+    + '<div class="ci-card"><div class="ci-label">💧 Hydratation <span class="ci-opt">(chaque goutte = ~0,5L)</span></div>'
+    + '<div class="ci-hydra">'
+    + '<button type="button" class="ci-hydra-btn" onclick="ciHydraAdd(-0.5)">−</button>'
+    + '<span class="ci-hydra-val" id="ciHydraVal">'+ci.hydraL.toFixed(1)+' L</span>'
+    + '<button type="button" class="ci-hydra-btn on" onclick="ciHydraAdd(0.5)">+ 0,5L</button>'
+    + '</div></div>'
+
+    + ciSliderPlain('⚡', 'Stress du jour', 'Niveau global ressenti', 'stress', 0, 10, 10)
+
+    + '<div class="ci-card"><div class="ci-label">🚬 Tabac aujourd\'hui</div>'+ciPillGroup('tabac', CI_OPTIONS.tabac)+'</div>'
+
+    + (showCycle ? '<div class="ci-card"><div class="ci-label">🌸 Phase du cycle</div>'+ciPillGroup('cycle', CI_OPTIONS.cycle)+'</div>' : '')
+    + '</div>'
+
+    + '<div class="ci-section">'
+    + '<div class="ci-section-title">Bilan séance</div>'
+    + '<div class="ci-section-sub">Le travail du jour</div>'
+    + '<div class="ci-section-desc">Ce que tu as fait aujourd\'hui.</div>'
+
+    + '<div class="ci-card"><div class="ci-label">🏋️ Activité du jour <span class="ci-opt">(plusieurs si journée chargée)</span></div>'
+    + '<div class="ci-pills">'+activitesHtml+'</div>'
+    + '<input type="text" id="ciAutresDetail" class="ci-input'+(ci.activites.includes('autres')?'':' hide')+'" placeholder="Détaille..." value="'+esc(ci.activitesAutre)+'" oninput="ci.activitesAutre=this.value" style="margin-top:10px"></div>'
+
+    + '<div class="ci-conditional'+(hasTraining ? ' on' : '')+'" id="ciTrainingBlock">'
+    + ciSliderDuration()
+    + ciSliderPlain('🔥', 'RPE physique séance', 'Effort perçu', 'rpe', 1, 10, 10)
+    + '</div>'
+
+    + ciSegmented('⚡', 'Énergie — fin de journée', null, 'energieSoir', 5)
+    + ciSliderPlain('🧠', 'RPE cognitif', 'Charge mentale globale', 'rpeCognitif', 1, 10, 10)
+    + '</div>'
+
+    + '<div class="ci-section">'
+    + '<div class="ci-section-title">Mot pour le coach</div>'
+    + '<div class="ci-section-desc">Sensations globales, questions, ce que tu veux faire passer.</div>'
+    + '<textarea class="ci-textarea" placeholder="Optionnel" oninput="ci.motCoach=this.value">'+esc(ci.motCoach)+'</textarea>'
+    + '</div>'
+
+    + '<button type="button" class="ci-submit" onclick="sendBilanWhatsApp()">📲 '+(S.isUpdate ? 'Modifier mon bilan' : 'Envoyer mon bilan')+' par WhatsApp</button>';
+}
+
+function ciLine(label, val, unit){
+  if(val === null || val === undefined || val === '') return '';
+  return label + ' : ' + val + (unit || '') + '\n';
+}
+
+function sendBilanWhatsApp(){
+  const dateStr = new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const hasTraining = ci.activites.some(a => a !== 'repos');
+  let m = '📋 *' + (S.isUpdate ? 'Bilan modifié' : 'Bilan du jour') + '* — ' + (S.user ? S.user.name : '') + ' — ' + dateStr + '\n\n';
+
+  m += '*A) Avant tout*\n' + (ci.avant.trim() || '—') + '\n\n';
+
+  m += '*B) Bilan journée*\n';
+  m += ciLine('🌙 Sommeil', ci.sommeilH, ' h');
+  m += ciLine('💤 Qualité', ci.sommeilQ);
+  m += ciLine('☀️ Forme au réveil', ci.reveil, '/5');
+  m += ciLine('🩹 Douleurs', ci.douleurs || 'RAS');
+  m += ciLine('🍴 Nutrition', ci.nutrition);
+  m += ciLine('💧 Hydratation', ci.hydraL.toFixed(1), ' L');
+  m += ciLine('⚡ Stress', ci.stress, '/10');
+  m += ciLine('🚬 Tabac', ci.tabac);
+  if(S.user && S.user.showCyclePhase) m += ciLine('🌸 Phase du cycle', ci.cycle);
+  m += '\n';
+
+  const actLabels = {
+    coach:  'PROG COACH RON - Séance individualisée',
+    salle:  'PROG SALLE EASTBOX - Séance Collective',
+    repos:  'REST DAY - Repos',
+    autres: 'AUTRES' + (ci.activitesAutre ? (' : ' + ci.activitesAutre) : '')
+  };
+  m += '*C) Bilan séance*\n';
+  m += ciLine('🏋️ Activité', ci.activites.length ? ci.activites.map(a => actLabels[a]).join(', ') : null);
+  if(hasTraining){
+    m += ciLine('⏱️ Durée', formatDuration(ci.duration));
+    m += ciLine('🔥 RPE physique', ci.rpe, '/10');
+  }
+  m += ciLine('⚡ Énergie fin de journée', ci.energieSoir, '/5');
+  m += ciLine('🧠 RPE cognitif', ci.rpeCognitif, '/10');
+  m += '\n';
+
+  m += '*D) Mot pour le coach*\n' + (ci.motCoach.trim() || '—');
+
+  // Sync Sheets en parallèle, fire-and-forget, AVANT la navigation WhatsApp.
+  // keepalive + mode:'no-cors' : sur iOS Safari, sans ça la requête serait
+  // annulée par la navigation qui suit immédiatement (même principe que le
+  // tracker fusionné).
+  if(S.token){
+    try{
+      fetch(API, {
+        method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(Object.assign({ action:'indivBilanSubmit', token:S.token }, ci, {
+          duration: hasTraining ? ci.duration : 0,
+          rpe: hasTraining ? ci.rpe : ''
+        })),
+        keepalive: true
+      }).catch(() => {});
+    }catch(_){}
+  }
+
+  window.location.href = 'https://wa.me/' + COACH_WHATSAPP + '?text=' + encodeURIComponent(m);
+}
+
+/* ===========================================================================
+   PROGRAMME D'ENTRAÎNEMENT — plan hebdo écrit par Coach Ron (Drive,
+   PROG INDIV/<athleteId>/, nomenclature ## SÉANCE 1/2/3, ### bloc — pas de
+   jour fixe, volontaire : une séance individuelle se fait "dans la
+   semaine", pas à une date imposée) + logging commentaire/vidéo après
+   chaque séance. Repris du tracker fusionné (ONGLET ENTRAINEMENT).
+   =========================================================================== */
+const MAX_VIDEO_MB = 25;
+let planRefDate = new Date();
+let _planSeances = [];
+let _planActiveIdx = 0;
+
+function isoWeekOfDate(date){
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return { week, year: d.getUTCFullYear() };
+}
+function isoWeekMonday(week, year){
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const week1Monday = new Date(jan4);
+  week1Monday.setUTCDate(jan4.getUTCDate() - jan4Day + 1);
+  const target = new Date(week1Monday);
+  target.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7);
+  return target;
+}
+function weekLabelStr(week, year){
+  const mon = isoWeekMonday(week, year);
+  const sun = new Date(mon); sun.setUTCDate(sun.getUTCDate() + 6);
+  const fmt = d => String(d.getUTCDate()).padStart(2,'0') + '.' + String(d.getUTCMonth()+1).padStart(2,'0');
+  return 'Semaine ' + week + ' - ' + fmt(mon) + '-' + fmt(sun) + ' - ' + year;
+}
+function isSameIsoWeek(a, b){ return a.week === b.week && a.year === b.year; }
+
+function renderProgramme(){
+  $('#tabContent').innerHTML =
+      '<div class="plan-week-nav">'
+    + '<button type="button" class="plan-week-nav-btn" onclick="planShiftWeek(-7)">‹</button>'
+    + '<div><div class="plan-week-label" id="planWeekLabel">—</div>'
+    + '<div class="plan-week-today hide" id="planTodayLink" onclick="planGoToday()">← revenir à cette semaine</div></div>'
+    + '<button type="button" class="plan-week-nav-btn" onclick="planShiftWeek(7)">›</button>'
+    + '</div>'
+    + '<div class="plan-history-link" onclick="loadWeekList()">📅 Toutes les semaines</div>'
+    + '<div id="planContent"><div class="spin"></div></div>';
+  loadPlan();
+}
+function planShiftWeek(days){ planRefDate.setDate(planRefDate.getDate() + days); loadPlan(); }
+function planGoToday(){ planRefDate = new Date(); loadPlan(); }
+
+async function loadPlan(){
+  const box = $('#planContent');
+  const { week, year } = isoWeekOfDate(planRefDate);
+  const isCurrent = isSameIsoWeek({week,year}, isoWeekOfDate(new Date()));
+  $('#planTodayLink').classList.toggle('hide', isCurrent);
+  box.innerHTML = '<div class="spin"></div>';
+  try{
+    const res = await api({ action:'indivPlan', token:S.token, week, year });
+    if(!res.ok || res.empty || !res.content){
+      $('#planWeekLabel').textContent = (res && res.weekLabel) || weekLabelStr(week, year);
+      box.innerHTML = '<div class="empty"><div class="big">📋</div>Pas de plan écrit pour cette semaine.<br>Demande à Coach Ron.</div>';
+      return;
+    }
+    $('#planWeekLabel').textContent = res.weekLabel;
+    renderPlanDoc(res.content, box);
+  }catch(err){
+    console.warn('Chargement plan échoué:', err);
+    box.innerHTML = '<div class="empty"><div class="big">⚠️</div>Impossible de charger le plan.<br>Vérifie ta connexion et réessaie.</div>';
+  }
+}
+
+async function loadWeekList(){
+  const box = $('#planContent');
+  box.innerHTML = '<div class="plan-history-back" onclick="loadPlan()">‹ Retour au plan</div><div class="spin"></div>';
+  try{
+    const res = await api({ action:'indivWeeks', token:S.token });
+    if(!res.ok || !res.weeks || !res.weeks.length){
+      box.innerHTML = '<div class="plan-history-back" onclick="loadPlan()">‹ Retour au plan</div><div class="empty"><div class="big">📋</div>Aucune semaine écrite pour l\'instant.</div>';
+      return;
+    }
+    const nowIso = isoWeekOfDate(new Date());
+    box.innerHTML = '<div class="plan-history-back" onclick="loadPlan()">‹ Retour au plan</div>' + res.weeks.map(w => {
+      const isCur = isSameIsoWeek(w, nowIso);
+      return '<button type="button" class="week-head week'+(isCur?' current':'')+'" onclick="planPickWeek('+w.week+','+w.year+')">'
+        + '<span class="week-num">S'+w.week+'</span>'
+        + '<span class="week-meta"><span class="t">'+esc(weekLabelStr(w.week, w.year))+'</span></span>'
+        + (isCur ? '<span class="pill">En cours</span>' : '<span class="chev">›</span>')
+        + '</button>';
+    }).join('');
+  }catch(err){
+    console.warn('Chargement historique échoué:', err);
+    box.innerHTML = '<div class="plan-history-back" onclick="loadPlan()">‹ Retour au plan</div><div class="empty"><div class="big">⚠️</div>Impossible de charger l\'historique.</div>';
+  }
+}
+function planPickWeek(week, year){ planRefDate = isoWeekMonday(week, year); loadPlan(); }
+
+function renderPlanDoc(md, container){
+  const body = md.replace(/^---[\s\S]*?---\s*/, '');
+  const lines = body.split('\n');
+  const seances = []; let current = null;
+  lines.forEach(line => {
+    const seanceMatch = line.match(/^##\s+(.+)$/);
+    const blocMatch = !seanceMatch && line.match(/^###\s+(.+)$/);
+    if(seanceMatch){ current = { title: seanceMatch[1].trim(), blocs: [] }; seances.push(current); }
+    else if(blocMatch && current){ current.blocs.push({ title: blocMatch[1].trim(), raw: [] }); }
+    else if(current && current.blocs.length){ current.blocs[current.blocs.length-1].raw.push(line); }
+  });
+  if(!seances.length){
+    container.innerHTML = '<div class="empty"><div class="big">⚠️</div>Plan trouvé mais illisible — signale-le à Coach Ron.</div>';
+    return;
+  }
+  seances.forEach(s => {
+    const m = s.title.match(/^S[ÉE]ANCE\s*(\d+)\s*[-–:]?\s*(.*)$/i);
+    s.tabLabel = m ? ('SÉANCE ' + m[1]) : s.title;
+    s.mainTitle = m && m[2] ? m[2] : s.title;
+  });
+  _planSeances = seances; _planActiveIdx = 0;
+  container.innerHTML =
+      '<div class="days" id="planTabs">' + seances.map((s,idx) => '<button type="button" class="day'+(idx===0?' on':'')+'" onclick="pickSeance('+idx+')">'+esc(s.tabLabel)+'</button>').join('') + '</div>'
+    + '<div id="planSeanceDoc"></div>';
+  renderSeanceDoc(0);
+}
+function pickSeance(idx){
+  _planActiveIdx = idx;
+  document.querySelectorAll('#planTabs .day').forEach((btn,i) => btn.classList.toggle('on', i === idx));
+  renderSeanceDoc(idx);
+}
+function renderSeanceDoc(idx){
+  const s = _planSeances[idx];
+  const box = $('#planSeanceDoc');
+  if(!s || !box) return;
+  box.innerHTML =
+      '<div class="plan-doc-title">'+esc(s.mainTitle)+'</div>'
+    + '<div class="doc">' + s.blocs.map(b => '<h3>'+esc(b.title)+'</h3>'+renderBlocLines(b.raw)).join('') + '</div>'
+    + '<div class="plan-log">'
+    + '<textarea class="ci-textarea" id="planLogComment" placeholder="Ton ressenti sur cette séance (optionnel)..."></textarea>'
+    + '<label class="plan-log-video"><input type="file" accept="video/*" id="planLogFile" onchange="planLogFileChange()"><span id="planLogFileText">📹 Ajouter une vidéo</span></label>'
+    + '<div class="plan-video-hint">Quelques secondes suffisent (1 rep) · max '+MAX_VIDEO_MB+' Mo</div>'
+    + '<button type="button" class="plan-log-submit" id="planLogSubmitBtn" onclick="submitTrainingLog()">ENVOYER À COACH RON</button>'
+    + '</div>';
+}
+function planLogFileChange(){
+  const f = $('#planLogFile').files[0];
+  $('#planLogFileText').textContent = f ? ('✓ ' + f.name) : '📹 Ajouter une vidéo';
+}
+function renderBlocLines(lines){
+  let html = ''; let inList = false;
+  lines.forEach(l => {
+    const t = l.trim(); if(!t) return;
+    if(t.startsWith('- ')){ if(!inList){ html += '<ul>'; inList = true; } html += '<li>'+inlineMd(t.slice(2))+'</li>'; }
+    else { if(inList){ html += '</ul>'; inList = false; } html += '<p>'+inlineMd(t)+'</p>'; }
+  });
+  if(inList) html += '</ul>';
+  return html || '<p>—</p>';
+}
+function inlineMd(s){
+  return esc(s)
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>');
+}
+function fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function submitTrainingLog(){
+  const btn = $('#planLogSubmitBtn');
+  const commentEl = $('#planLogComment');
+  const fileInput = $('#planLogFile');
+  const comment = commentEl.value.trim();
+  const file = fileInput.files[0];
+  const s = _planSeances[_planActiveIdx];
+  if(!comment && !file){ showToast('Ajoute un commentaire ou une vidéo avant d\'envoyer', true); return; }
+  if(file && file.size > MAX_VIDEO_MB * 1024 * 1024){ showToast('Vidéo trop lourde (max '+MAX_VIDEO_MB+' Mo) — filme un extrait plus court', true); return; }
+
+  btn.disabled = true; btn.textContent = 'ENVOI...';
+  try{
+    let videoBase64 = null, videoName = null, videoMime = null;
+    if(file){ videoBase64 = await fileToBase64(file); videoName = file.name; videoMime = file.type; }
+    const res = await api({ action:'indivTrainingLog', token:S.token, seance:s.title, comment, videoBase64, videoName, videoMime });
+    if(res.ok){
+      showToast('Envoyé à Coach Ron ✓');
+      btn.textContent = 'ENVOYÉ ✓';
+      commentEl.value = ''; fileInput.value = ''; $('#planLogFileText').textContent = '📹 Ajouter une vidéo';
+      setTimeout(() => { btn.disabled = false; btn.textContent = 'ENVOYER À COACH RON'; }, 2500);
+    } else throw new Error(res.error || 'Erreur serveur');
+  }catch(err){
+    console.warn('Envoi training log échoué:', err);
+    showToast('Échec de l\'envoi — réessaie', true);
+    btn.disabled = false; btn.textContent = 'ENVOYER À COACH RON';
+  }
 }
 
 function esc(s){
