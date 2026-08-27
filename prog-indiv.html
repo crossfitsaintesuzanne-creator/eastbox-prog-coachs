@@ -1092,6 +1092,27 @@ function esc(s){
 }
 
 /* ===========================================================================
+   RETOUR SUR L'ONGLET — sur iPhone, envoyer le bilan bascule vers l'appli
+   WhatsApp via un lien universel : Safari ne recharge PAS la page derrière
+   (elle reste simplement en arrière-plan), donc checkTodayBilan() — appelé
+   une seule fois au login dans start() — ne se relance jamais tout seul.
+   Résultat observé par Ron (2026-08-27) : une athlète envoie son bilan, puis
+   en revenant sur l'onglet Suivi Quotidien le bandeau "déjà envoyé" ne
+   s'affiche pas — pas un bug d'écriture (déjà vérifié dans le Sheet), mais
+   un état resté figé côté navigateur. On revérifie donc à chaque retour
+   visible sur la page (changement d'onglet Safari, retour de WhatsApp...),
+   pas seulement au login.
+   =========================================================================== */
+function recheckBilanIfNeeded(){
+  if(!S.token || S.tab !== 'quotidien') return;
+  checkTodayBilan().then(() => { if(S.tab === 'quotidien') renderQuotidien(); });
+}
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible') recheckBilanIfNeeded();
+});
+window.addEventListener('pageshow', recheckBilanIfNeeded);
+
+/* ===========================================================================
    DÉMARRAGE
    =========================================================================== */
 if(restore()) start();
