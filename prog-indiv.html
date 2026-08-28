@@ -27,6 +27,7 @@
 :root{
   --navy:#14233c; --navy-2:#1b2e4d; --navy-3:#24395e;
   --orange:#ea8d49; --orange-d:#c9752f;
+  --green:#4caf7d; --red:#e06666;
   --ink:#eef2f8; --muted:#8ea0bd; --line:rgba(255,255,255,.09);
   --r:14px; --pad:16px;
 }
@@ -252,6 +253,23 @@ input[type=range].ci-slider-input::-moz-range-thumb{
 .days::-webkit-scrollbar{display:none}
 .day{flex:0 0 auto;padding:9px 15px;border-radius:999px;background:var(--navy-2);border:1px solid var(--line);font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .day.on{background:var(--orange);color:#10192b;border-color:var(--orange)}
+/* ---------- État de chaque séance (Ron, 2026-08-28) ----------
+   vert   = ressenti déjà envoyé au coach pour cette séance
+   orange = à faire (semaine en cours ou à venir)
+   rouge  = semaine passée sans rien d'envoyé
+   La couleur porte l'état, le remplissage porte la sélection : une pastille
+   sélectionnée reste pleine, mais de la couleur de son état. */
+.day.st-done{border-color:var(--green);color:var(--green);background:rgba(76,175,125,.12)}
+.day.st-done.on{background:var(--green);color:#0b2a1b;border-color:var(--green)}
+.day.st-todo{border-color:var(--orange);color:var(--orange);background:rgba(234,141,73,.12)}
+.day.st-todo.on{background:var(--orange);color:#10192b;border-color:var(--orange)}
+.day.st-missed{border-color:var(--red);color:var(--red);background:rgba(224,102,102,.12)}
+.day.st-missed.on{background:var(--red);color:#2a0f0f;border-color:var(--red)}
+.plan-legend{display:flex;flex-wrap:wrap;gap:12px;margin:-6px 0 14px;font-size:11px;color:var(--muted)}
+.plan-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:baseline}
+.plan-legend .lg-done i{background:var(--green)}
+.plan-legend .lg-todo i{background:var(--orange)}
+.plan-legend .lg-missed i{background:var(--red)}
 .doc{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);padding:20px 18px}
 .doc h1,.doc h2{font-family:'Bebas Neue',sans-serif;font-weight:400;letter-spacing:.02em;color:var(--orange);line-height:1.12;margin:26px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
 .doc h1{font-size:29px}.doc h2{font-size:24px}
@@ -273,12 +291,9 @@ input[type=range].ci-slider-input::-moz-range-thumb{
 .doc img{max-width:100%;border-radius:10px}
 .plan-doc-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.5px;color:var(--ink);margin-bottom:12px}
 .plan-log{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:12px}
-.plan-log-video{display:flex;align-items:center;gap:8px;background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0 10px;font-size:12px;color:var(--muted)}
-.plan-log-video input{display:none}
 .plan-log-submit{width:100%;background:var(--orange);color:#10192b;border:none;padding:12px;border-radius:10px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.2px;font-weight:700;text-transform:uppercase;transition:transform .1s,background .15s}
 .plan-log-submit:active{transform:scale(.98);background:var(--orange-d)}
 .plan-log-submit:disabled{opacity:.55;pointer-events:none}
-.plan-video-hint{font-size:10.5px;color:var(--muted);margin:-4px 0 10px 2px;font-style:italic}
 .plan-log-badge{
   background:rgba(234,141,73,.12);border:1px solid var(--orange);border-radius:9px;
   padding:8px 11px;margin-bottom:10px;font-size:11px;color:var(--orange);font-weight:700;
@@ -761,14 +776,12 @@ function sendBilanWhatsApp(){
    PROGRAMME D'ENTRAÎNEMENT — plan hebdo écrit par Coach Ron (Drive,
    PROG INDIV/<athleteId>/, nomenclature ## SÉANCE 1/2/3, ### bloc — pas de
    jour fixe, volontaire : une séance individuelle se fait "dans la
-   semaine", pas à une date imposée) + logging commentaire/vidéo après
-   chaque séance. Repris du tracker fusionné (ONGLET ENTRAINEMENT).
+   semaine", pas à une date imposée) + logging du ressenti après chaque
+   séance. Repris du tracker fusionné (ONGLET ENTRAINEMENT).
+   L'ajout de vidéo a été retiré de l'interface le 2026-08-28 à la demande de
+   Ron ; le code serveur (actionIndivTrainingLogChunk, upload Drive découpé)
+   reste en place pour pouvoir le réactiver sans tout reconstruire.
    =========================================================================== */
-// Relevé à 60 (était 25) le 2026-08-27 : l'envoi est maintenant découpé en
-// petits morceaux (voir uploadVideoChunked ci-dessous), donc la taille totale
-// n'est plus contrainte par un seul envoi fragile.
-const MAX_VIDEO_MB = 60;
-const VIDEO_CHUNK_MB = 4;
 let planRefDate = new Date();
 let _planSeances = [];
 let _planActiveIdx = 0;
@@ -896,10 +909,36 @@ function renderPlanDoc(md, container){
   });
   _planSeances = seances; _planActiveIdx = 0;
   container.innerHTML =
-      '<div class="days" id="planTabs">' + seances.map((s,idx) => '<button type="button" class="day'+(idx===0?' on':'')+'" onclick="pickSeance('+idx+')">'+esc(s.tabLabel)+'</button>').join('') + '</div>'
+      '<div class="days" id="planTabs">'
+    + seances.map((s,idx) =>
+        '<button type="button" class="day st-'+seanceStatus(s)+(idx===0?' on':'')+'" onclick="pickSeance('+idx+')">'
+        + esc(s.tabLabel) + '</button>').join('')
+    + '</div>'
+    + '<div class="plan-legend">'
+    + '<span class="lg-done"><i></i>Réalisée</span>'
+    + '<span class="lg-todo"><i></i>À faire</span>'
+    + '<span class="lg-missed"><i></i>Non faite</span>'
+    + '</div>'
     + '<div id="planSeanceDoc"></div>';
   renderSeanceDoc(0);
 }
+// État d'une séance pour la couleur de sa pastille (Ron, 2026-08-28) :
+//   done   = au moins un ressenti déjà envoyé pour cette séance cette
+//            semaine-là (les logs viennent de _planLogs, chargé par loadPlan)
+//   todo   = rien d'envoyé, mais la semaine affichée est en cours ou à venir
+//   missed = rien d'envoyé et la semaine est passée
+// Une séance individuelle n'ayant pas de jour imposé (voir la nomenclature
+// ## SÉANCE 1/2/3), on ne peut juger « non faite » qu'à l'échelle de la
+// semaine, jamais du jour.
+function seanceStatus(s){
+  const done = Object.keys(_planLogs).some(k => k.indexOf(s.title + '|') === 0);
+  if(done) return 'done';
+  const now = isoWeekOfDate(new Date());
+  const past = (_planActiveYear < now.year)
+            || (_planActiveYear === now.year && _planActiveWeek < now.week);
+  return past ? 'missed' : 'todo';
+}
+
 function pickSeance(idx){
   _planActiveIdx = idx;
   document.querySelectorAll('#planTabs .day').forEach((btn,i) => btn.classList.toggle('on', i === idx));
@@ -923,17 +962,11 @@ function renderSeanceDoc(idx){
         const badge = prior
           ? '<div class="plan-log-badge">✓ Déjà envoyé à '+esc(fmtHHMM(prior.horodatage))+' · modification possible</div>'
           : '';
-        const videoNote = (prior && prior.hasVideo)
-          ? '<div class="plan-video-hint">📹 Au moins une vidéo a déjà été envoyée pour cet exercice — en sélectionner de nouvelles les remplace.</div>'
-          : '';
         const priorComment = prior ? esc(prior.comment || '') : '';
         return '<div class="doc"><h3>'+esc(b.title)+'</h3>'+renderBlocLines(b.raw)+'</div>'
           + '<div class="plan-log">'
           + badge
           + '<textarea class="ci-textarea" id="planLogComment_'+bIdx+'" placeholder="Ton ressenti sur cet exercice (optionnel)...">'+priorComment+'</textarea>'
-          + '<label class="plan-log-video"><input type="file" accept="video/*" multiple id="planLogFile_'+bIdx+'" onchange="planLogFileChange('+bIdx+')"><span id="planLogFileText_'+bIdx+'">📹 Ajouter une ou plusieurs vidéos</span></label>'
-          + videoNote
-          + '<div class="plan-video-hint">Quelques secondes suffisent (1 rep) · max '+MAX_VIDEO_MB+' Mo par vidéo</div>'
           + '</div>';
       }).join('')
     + '<button type="button" class="plan-log-submit" id="planLogSubmitBtn" onclick="submitAllTrainingLogs()">📲 ENVOYER À COACH RON</button>';
@@ -941,12 +974,6 @@ function renderSeanceDoc(idx){
 function fmtHHMM(iso){
   const d = new Date(iso);
   return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
-}
-function planLogFileChange(bIdx){
-  const files = $('#planLogFile_'+bIdx).files;
-  const span = $('#planLogFileText_'+bIdx);
-  if(!files.length){ span.textContent = '📹 Ajouter une ou plusieurs vidéos'; return; }
-  span.textContent = files.length === 1 ? ('✓ ' + files[0].name) : ('✓ ' + files.length + ' vidéos sélectionnées');
 }
 function renderBlocLines(lines){
   let html = ''; let inList = false;
@@ -984,138 +1011,65 @@ function blocDetailsText(lines){
     return '• ' + t;
   }).join('\n');
 }
-function fileToBase64(file){
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-// Envoie une vidéo en petits morceaux séquentiels plutôt qu'en un seul gros
-// paquet (2026-08-27, retour de Ron : les vidéos filmées au téléphone
-// passaient mal — soit rejetées par la limite, soit en échec net après un
-// moment, probablement un timeout réseau sur un fichier trop lourd envoyé
-// d'un coup). Chaque morceau part indépendamment ; Apps Script les
-// réassemble au dernier (voir actionIndivTrainingLogChunk). Convertir en
-// base64 morceau par morceau (plutôt que le fichier entier d'un coup) évite
-// aussi de figer l'appli sur un téléphone modeste le temps de la conversion.
-async function uploadVideoChunked(file, meta, onProgress){
-  const chunkSize = VIDEO_CHUNK_MB * 1024 * 1024;
-  const total = Math.ceil(file.size / chunkSize) || 1;
-  const uploadId = Date.now() + '_' + Math.random().toString(36).slice(2, 10);
-  let lastRes = null;
-  for(let index = 0; index < total; index++){
-    const start = index * chunkSize;
-    const chunkBlob = file.slice(start, Math.min(start + chunkSize, file.size));
-    const chunkBase64 = await fileToBase64(chunkBlob);
-    if(onProgress) onProgress(index + 1, total);
-    lastRes = await api(Object.assign({
-      action:'indivTrainingLogChunk', token:S.token, uploadId, index, total,
-      chunk: chunkBase64, videoName: file.name, videoMime: file.type
-    }, meta));
-    if(!lastRes.ok) throw new Error(lastRes.error || 'Erreur d\'envoi vidéo (morceau '+(index+1)+'/'+total+')');
-  }
-  return lastRes.videoUrl || '';
-}
-async function submitAllTrainingLogs(){
+// Envoi du log d'entraînement : commentaires seuls (l'ajout de vidéo est
+// retiré de l'interface depuis le 2026-08-28, à la demande de Ron — le code
+// serveur correspondant, actionIndivTrainingLogChunk, reste en place pour
+// pouvoir le réactiver sans tout refaire).
+//
+// La navigation vers WhatsApp doit rester DANS la foulée du clic : c'était la
+// cause racine du bug des emoji en losange (trouvée le 2026-08-28 avec la page
+// de test test-whatsapp.html, dont les 8 variantes passaient toutes, y compris
+// le message exact qui échouait dans l'appli). iOS Safari borne dans le temps
+// le « geste utilisateur » ; au-delà, la navigation emprunte un chemin qui
+// abîme les caractères multi-octets, en laissant le texte intact. La séance 1
+// attendait 6 appels serveur séquentiels (~3 s) et cassait ; les séances 2 et
+// 3 n'en attendaient que 2 et passaient — ce qui faisait croire à tort à un
+// problème de longueur, les deux variables étant confondues.
+// D'où : écritures Sheet en fire-and-forget (keepalive), navigation immédiate,
+// exactement la recette du Suivi Quotidien, qui n'a jamais eu le problème.
+function submitAllTrainingLogs(){
   const s = _planSeances[_planActiveIdx];
-  const btn = $('#planLogSubmitBtn');
 
   const entries = [];
   s.blocs.forEach((b, bIdx) => {
-    const commentEl = $('#planLogComment_'+bIdx);
-    const fileInput = $('#planLogFile_'+bIdx);
-    const comment = commentEl.value.trim();
-    const files = Array.from(fileInput.files || []);
-    if(comment || files.length) entries.push({ bIdx, bloc:b, comment, files });
+    const comment = $('#planLogComment_'+bIdx).value.trim();
+    if(comment) entries.push({ bIdx, bloc:b, comment });
   });
-  if(!entries.length){ showToast('Ajoute au moins un commentaire ou une vidéo avant d\'envoyer', true); return; }
-  for(const e of entries){
-    for(const f of e.files){
-      if(f.size > MAX_VIDEO_MB * 1024 * 1024){
-        showToast('Une vidéo est trop lourde sur "'+e.bloc.title+'" (max '+MAX_VIDEO_MB+' Mo)', true);
-        return;
-      }
-    }
-  }
+  if(!entries.length){ showToast('Ajoute au moins un commentaire avant d\'envoyer', true); return; }
 
-  btn.disabled = true; btn.textContent = 'ENVOI...';
-  try{
-    const results = [];
-    for(const e of entries){
-      const details = blocDetailsText(e.bloc.raw);
-      const meta = { seance:s.title, exercice:e.bloc.title, details, comment:e.comment, week:_planActiveWeek, year:_planActiveYear };
-      const videoUrls = [];
-      for(let vi = 0; vi < e.files.length; vi++){
-        const url = await uploadVideoChunked(e.files[vi], meta, (i, tot) => {
-          const vidLabel = e.files.length > 1 ? ' vidéo '+(vi+1)+'/'+e.files.length : '';
-          btn.textContent = 'ENVOI '+(results.length+1)+'/'+entries.length+vidLabel+' ('+i+'/'+tot+')...';
-        });
-        if(url) videoUrls.push(url);
-      }
-      const res = await api(Object.assign({ action:'indivTrainingLog', token:S.token, hasVideo: videoUrls.length > 0 }, meta));
-      if(!res.ok) throw new Error(res.error || 'Erreur serveur');
-      results.push({ bloc:e.bloc, comment:e.comment, videoUrls });
-    }
+  entries.forEach(e => {
+    const details = blocDetailsText(e.bloc.raw);
+    try{
+      fetch(API, {
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({
+          action:'indivTrainingLog', token:S.token, week:_planActiveWeek, year:_planActiveYear,
+          seance:s.title, exercice:e.bloc.title, details, comment:e.comment, hasVideo:false
+        }),
+        keepalive:true
+      }).catch(() => {});
+    }catch(_){}
+  });
 
-    // Emoji : n'utiliser QUE ceux vus s'afficher correctement sur l'iPhone
-    // de Ron, constatés sur ses propres captures WhatsApp — pas ceux qu'on
-    // suppose corrects. Historique (3 allers-retours, 2026-08-27) :
-    //   📋 U+1F4CB  OK   (en-tête Suivi Quotidien, + en-tête entraînement
-    //                     séances 2 et 3 de la capture du 27/08 23:18-23:19)
-    //   🔥 U+1F525  OK   (« RPE physique » du Suivi Quotidien)
-    //   🏋️ U+1F3CB+FE0F  TOFU (losange noir + « ? ») — en-tête entraînement
-    //                     séance 1, capture du 27/08 ; j'avais cru à tort
-    //                     qu'il passait en le déduisant d'une capture du
-    //                     Suivi Quotidien, sans vérification réelle.
-    //   💬 U+1F4AC / 📹 U+1F4F9  TOFU (capture du 27/08 18:34)
-    // La ligne vidéo reste sans emoji : aucun pictogramme vidéo n'a pu être
-    // vérifié sur son téléphone, et l'URL est déjà mise en évidence par
-    // WhatsApp (lien bleu). Ne rien ajouter ici sans preuve par capture.
-    // Construction du message en 2 passes (2026-08-27). Constat après 4
-    // allers-retours avec Ron : dans le message long de la SÉANCE 1, les
-    // emoji arrivent en tofu sur son iPhone alors que le texte (accents,
-    // tiret long) arrive intact — et le MÊME emoji passe très bien dans les
-    // messages courts (séances 2 et 3, Suivi Quotidien). Ce ne sont donc ni
-    // les emoji, ni le fichier, ni le `@` (test « Push seul » de Ron : OK).
-    // Mesures : séance 2 = 588 car. d'URL OK, séance 3 = 633 OK,
-    // Suivi Quotidien = 1084 OK, séance 1 = 1107 CASSÉ.
-    // Les suspects restants (longueur, tiret long `—`, `+`) proviennent tous
-    // du détail du plan. D'où : on assainit le tiret long, et si l'URL
-    // dépasse un seuil prudent on renvoie le message sans le détail du plan
-    // (que Ron a écrit lui-même et qui reste consigné dans le Sheet), en
-    // gardant l'essentiel : l'exercice, le ressenti, la vidéo.
-    const buildMsg = withDetails => {
-      let out = '📋 *Log entraînement* — ' + (S.user ? S.user.name : '') + ' — ' + waSafe(s.title) + '\n\n';
-      results.forEach(r => {
-        out += '*' + waSafe(r.bloc.title) + '*\n';
-        if(withDetails) out += waSafe(blocDetailsText(r.bloc.raw)) + '\n';
-        if(r.comment) out += '🔥 _Ressenti :_ ' + waSafe(r.comment) + '\n';
-        r.videoUrls.forEach((u, i) => {
-          out += '_Vidéo'+(r.videoUrls.length > 1 ? ' '+(i+1) : '')+' :_ ' + u + '\n';
-        });
-        out += '\n';
-      });
-      return out;
-    };
-    const WA_URL_MAX = 1000; // < 1084, la plus longue URL vue fonctionner chez Ron
-    const waUrl = txt => 'https://wa.me/' + COACH_WHATSAPP + '?text=' + encodeURIComponent(txt);
-    let m = buildMsg(true);
-    if(waUrl(m).length > WA_URL_MAX) m = buildMsg(false);
+  const msg = buildTrainingMsg(s, entries);
+  entries.forEach(e => { $('#planLogComment_'+e.bIdx).value = ''; });
+  window.location.href = waUrl(msg);
+}
 
-    entries.forEach(e => {
-      $('#planLogComment_'+e.bIdx).value = '';
-      $('#planLogFile_'+e.bIdx).value = '';
-      $('#planLogFileText_'+e.bIdx).textContent = '📹 Ajouter une ou plusieurs vidéos';
-    });
-
-    window.location.href = waUrl(m);
-  }catch(err){
-    console.warn('Envoi training log échoué:', err);
-    showToast('Échec de l\'envoi — réessaie', true);
-    btn.disabled = false; btn.textContent = '📲 ENVOYER À COACH RON';
-  }
+// Emoji : n'utiliser QUE ceux vus s'afficher correctement sur l'iPhone de
+// Ron (📋 U+1F4CB et 🔥 U+1F525, constatés sur ses captures).
+function buildTrainingMsg(s, results){
+  let out = '📋 *Log entraînement* — ' + (S.user ? S.user.name : '') + ' — ' + waSafe(s.title) + '\n\n';
+  results.forEach(r => {
+    out += '*' + waSafe(r.bloc.title) + '*\n';
+    out += waSafe(blocDetailsText(r.bloc.raw)) + '\n';
+    if(r.comment) out += '🔥 _Ressenti :_ ' + waSafe(r.comment) + '\n';
+    out += '\n';
+  });
+  return out;
+}
+function waUrl(txt){
+  return 'https://wa.me/' + COACH_WHATSAPP + '?text=' + encodeURIComponent(txt);
 }
 
 function esc(s){
@@ -1136,14 +1090,21 @@ function esc(s){
    visible sur la page (changement d'onglet Safari, retour de WhatsApp...),
    pas seulement au login.
    =========================================================================== */
-function recheckBilanIfNeeded(){
-  if(!S.token || S.tab !== 'quotidien') return;
-  checkTodayBilan().then(() => { if(S.tab === 'quotidien') renderQuotidien(); });
+function recheckOnReturn(){
+  if(!S.token) return;
+  if(S.tab === 'quotidien'){
+    checkTodayBilan().then(() => { if(S.tab === 'quotidien') renderQuotidien(); });
+  } else if(S.tab === 'programme'){
+    // Même raison que pour le bilan : l'onglet n'est jamais rechargé au
+    // retour de WhatsApp. Sans ça, la pastille de la séance qu'on vient
+    // d'envoyer resterait orange jusqu'au prochain chargement complet.
+    loadPlan();
+  }
 }
 document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible') recheckBilanIfNeeded();
+  if(document.visibilityState === 'visible') recheckOnReturn();
 });
-window.addEventListener('pageshow', recheckBilanIfNeeded);
+window.addEventListener('pageshow', recheckOnReturn);
 
 /* ===========================================================================
    DÉMARRAGE
