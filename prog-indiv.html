@@ -447,8 +447,27 @@ async function start(){
   $('#app').classList.remove('hide');
   $('#whoName').textContent = S.user.name;
   $('#headerDate').textContent = headerDateStr();
-  // Onglet Nutrition réservé aux athlètes suivis côté nutrition.
-  document.querySelector('.tab-btn[data-tab="nutrition"]').classList.toggle('hide', !(S.user && S.user.nutrition));
+  // Onglet Nutrition réservé aux athlètes suivies côté nutrition.
+  // Cas particulier : une session ouverte AVANT l'ajout du Suivi Nutrition
+  // n'a pas le drapeau dans le `user` stocké en localStorage — il vaut
+  // `undefined`, pas `false`. Sans traitement, l'athlète resterait sans
+  // onglet même une fois l'Apps Script redéployé, jusqu'à ce qu'elle pense à
+  // se déconnecter/reconnecter. On interroge donc le serveur dans ce cas
+  // précis (il refuse explicitement si elle n'est pas concernée).
+  const nutTab = document.querySelector('.tab-btn[data-tab="nutrition"]');
+  const nutFlag = S.user ? S.user.nutrition : false;
+  nutTab.classList.toggle('hide', nutFlag !== true);
+  if(nutFlag === undefined){
+    api({ action:'indivNutritionConfig', token:S.token })
+      .then(r => {
+        if(r && r.ok){
+          S.user.nutrition = true;
+          try{ localStorage.setItem('eb_indiv', JSON.stringify({t:S.token,u:S.user})); }catch(_){}
+          nutTab.classList.remove('hide');
+        }
+      })
+      .catch(() => {});
+  }
   await checkTodayBilan();
   showTab('quotidien');
 }
@@ -1126,9 +1145,12 @@ let _nutriPhoto = null;    // File choisi (pas encore envoyé)
 async function renderNutrition(){
   $('#tabContent').innerHTML = '<div class="spin"></div>';
   try{
+    // Seule la config est bloquante : si la relecture des repas du jour
+    // échoue, on affiche quand même les objectifs (décompte à zéro) plutôt
+    // que tout un écran d'erreur.
     const [conf, today] = await Promise.all([
       api({ action:'indivNutritionConfig', token:S.token }),
-      api({ action:'indivNutritionToday',  token:S.token })
+      api({ action:'indivNutritionToday',  token:S.token }).catch(() => null)
     ]);
     if(!conf.ok) throw new Error(conf.error || 'Erreur serveur');
     _nutriConf = conf;
@@ -1137,7 +1159,22 @@ async function renderNutrition(){
     drawNutrition();
   }catch(err){
     console.warn('Chargement nutrition échoué:', err);
-    $('#tabContent').innerHTML = '<div class="empty"><div class="big">⚠️</div>Impossible de charger ton suivi nutrition.<br>Vérifie ta connexion et réessaie.</div>';
+    // « Action inconnue » = l'Apps Script déployé n'a pas encore les actions
+    // nutrition. Le dire franchement plutôt que « vérifie ta connexion »,
+    // qui envoie chercher au mauvais endroit.
+    const msg = String((err && err.message) || err || '');
+    const stale = /action inconnue/i.test(msg);
+    $('#tabContent').innerHTML = stale
+      ? '<div class="empty"><div class="big">🛠️</div>'
+        + '<b style="display:block;color:var(--ink);font-size:16px;margin-bottom:8px">Serveur pas encore à jour</b>'
+        + '<p>La partie nutrition n\'est pas encore active côté serveur. Préviens Coach Ron : l\'Apps Script doit être redéployé.</p></div>'
+      // Afficher le message réel du serveur, pas seulement « vérifie ta
+      // connexion » : sans ça, un refus ou une erreur Drive/Sheets ressemble
+      // à une panne réseau et envoie chercher au mauvais endroit.
+      : '<div class="empty"><div class="big">⚠️</div>'
+        + '<b style="display:block;color:var(--ink);font-size:16px;margin-bottom:8px">Impossible de charger ton suivi nutrition</b>'
+        + '<p>' + esc(msg || 'Erreur inconnue') + '</p>'
+        + '<p style="margin-top:10px;font-size:12px">Montre ce message à Coach Ron.</p></div>';
   }
 }
 
