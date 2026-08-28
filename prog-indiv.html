@@ -299,6 +299,39 @@ input[type=range].ci-slider-input::-moz-range-thumb{
   padding:8px 11px;margin-bottom:10px;font-size:11px;color:var(--orange);font-weight:700;
 }
 
+/* ---------- Suivi Nutrition ---------- */
+.nu-notes{background:rgba(234,141,73,.1);border:1px solid var(--orange);border-radius:12px;
+  padding:12px 14px;margin-bottom:18px;font-size:13px;color:var(--ink);white-space:pre-wrap}
+.nu-macros{display:grid;gap:10px}
+.nu-macro{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.nu-macro-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px}
+.nu-macro-name{font-size:13px;font-weight:700;color:var(--ink)}
+.nu-macro-val{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--green);line-height:1}
+.nu-macro-val.over{color:var(--red)}
+.nu-macro-val small{font-family:'Inter',sans-serif;font-size:11px;font-weight:500;color:var(--muted)}
+.nu-bar{height:8px;background:var(--navy);border-radius:4px;overflow:hidden}
+.nu-bar-fill{height:100%;background:var(--orange);border-radius:4px;transition:width .25s}
+.nu-bar-fill.over{background:var(--red)}
+.nu-macro-sub{font-size:11px;color:var(--muted);margin-top:5px}
+.nu-photo{display:flex;align-items:center;gap:8px;background:var(--navy);border:1.5px solid var(--line);
+  border-radius:10px;padding:12px;font-size:13px;color:var(--muted)}
+.nu-photo input{display:none}
+.nu-inputs{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.nu-input{display:flex;align-items:center;gap:6px;background:var(--navy);border:1.5px solid var(--line);
+  border-radius:10px;padding:8px 10px}
+.nu-input span{font-size:11px;color:var(--muted);flex:1 1 auto;min-width:0}
+.nu-input input{width:58px;background:none;border:0;color:var(--ink);font-size:15px;font-weight:700;
+  text-align:right;outline:none;font-family:inherit;padding:0;-moz-appearance:textfield}
+.nu-input input::-webkit-outer-spin-button,.nu-input input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.nu-input i{font-style:normal;font-size:11px;color:var(--muted)}
+.nu-item{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:9px}
+.nu-item-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
+.nu-item-head b{font-size:13px;color:var(--ink)}
+.nu-item-head span{font-size:11px;color:var(--muted)}
+.nu-item-desc{font-size:13px;color:var(--ink);margin-bottom:3px}
+.nu-item-macros{font-size:11.5px;color:var(--muted)}
+.nu-item-photo{display:inline-block;margin-top:6px;font-size:11.5px;color:var(--orange)}
+
 @media(min-width:640px){ :root{--pad:22px} }
 </style>
 </head>
@@ -414,6 +447,8 @@ async function start(){
   $('#app').classList.remove('hide');
   $('#whoName').textContent = S.user.name;
   $('#headerDate').textContent = headerDateStr();
+  // Onglet Nutrition réservé aux athlètes suivis côté nutrition.
+  document.querySelector('.tab-btn[data-tab="nutrition"]').classList.toggle('hide', !(S.user && S.user.nutrition));
   await checkTodayBilan();
   showTab('quotidien');
 }
@@ -438,19 +473,11 @@ async function checkTodayBilan(){
 }
 
 /* ===========================================================================
-   ONGLETS — « Suivi Quotidien » et « Programme d'entraînement » sont de
-   vrais écrans (voir plus bas). « Suivi Nutrition » reste une coquille pour
-   l'instant : état « à venir » explicite plutôt qu'un formulaire à moitié
-   fait, en attendant la prochaine itération.
+   ONGLETS — les trois sont de vrais écrans depuis le 2026-08-28.
+   « Suivi Nutrition » n'est visible que pour les athlètes concernés
+   (drapeau `nutrition` sur le compte, côté Apps Script) : l'onglet est
+   retiré de la barre pour les autres plutôt que d'afficher un écran vide.
    =========================================================================== */
-const TABS = {
-  nutrition: {
-    icon: '🍽️',
-    title: 'Suivi Nutrition',
-    text: 'Ici tu pourras bientôt enregistrer tes repas et suivre tes objectifs nutritionnels.'
-  }
-};
-
 function showTab(name){
   S.tab = name;
   document.querySelectorAll('.tab-btn').forEach(b => {
@@ -458,13 +485,7 @@ function showTab(name){
   });
   if(name === 'quotidien'){ renderQuotidien(); return; }
   if(name === 'programme'){ renderProgramme(); return; }
-  const t = TABS[name];
-  $('#tabContent').innerHTML =
-      '<div class="empty">'
-    + '<div class="big">'+t.icon+'</div>'
-    + '<b style="display:block;color:var(--ink);font-size:16px;margin-bottom:8px">'+esc(t.title)+'</b>'
-    + '<p>'+esc(t.text)+'</p>'
-    + '</div>';
+  if(name === 'nutrition'){ renderNutrition(); return; }
 }
 
 function showToast(message, isError){
@@ -1070,6 +1091,242 @@ function buildTrainingMsg(s, results){
 }
 function waUrl(txt){
   return 'https://wa.me/' + COACH_WHATSAPP + '?text=' + encodeURIComponent(txt);
+}
+
+/* ===========================================================================
+   SUIVI NUTRITION (2026-08-28) — objectifs du jour lus dans un .md écrit par
+   Ron (PROG INDIV/<athlete>/NUTRITION.md), repas saisis par l'athlète au fil
+   de la journée : photo + description + macros. À chaque repas envoyé, le
+   décompte du restant se met à jour.
+   Le restant est recalculé depuis les repas RÉELLEMENT enregistrés (relus au
+   chargement), pas depuis un cumul gardé en mémoire : l'athlète ferme
+   l'appli entre deux repas, et le compte doit rester juste au retour.
+   =========================================================================== */
+const MACROS = [
+  { k:'prot', label:'Protéines', unit:'g' },
+  { k:'gluc', label:'Glucides',  unit:'g' },
+  { k:'lip',  label:'Lipides',   unit:'g' },
+  { k:'kcal', label:'Calories',  unit:'kcal' }
+];
+const MAX_PHOTO_MB = 12;
+const PHOTO_CHUNK_MB = 3;
+
+// « 45 g protéines » mais « 600 kcal » — répéter le libellé pour les calories
+// donnerait « 600 kcal calories ».
+function macroText(m, val){
+  const n = Math.round(val);
+  return m.k === 'kcal' ? (n + ' kcal') : (n + ' ' + m.unit + ' ' + m.label.toLowerCase());
+}
+
+let _nutriConf = null;     // { objectifs, repas[], notes }
+let _nutriToday = [];      // repas déjà envoyés aujourd'hui
+let _nutriRepas = null;    // créneau sélectionné
+let _nutriPhoto = null;    // File choisi (pas encore envoyé)
+
+async function renderNutrition(){
+  $('#tabContent').innerHTML = '<div class="spin"></div>';
+  try{
+    const [conf, today] = await Promise.all([
+      api({ action:'indivNutritionConfig', token:S.token }),
+      api({ action:'indivNutritionToday',  token:S.token })
+    ]);
+    if(!conf.ok) throw new Error(conf.error || 'Erreur serveur');
+    _nutriConf = conf;
+    _nutriToday = (today && today.ok && today.repas) ? today.repas : [];
+    if(!_nutriRepas) _nutriRepas = (conf.repas && conf.repas[0]) || 'Repas';
+    drawNutrition();
+  }catch(err){
+    console.warn('Chargement nutrition échoué:', err);
+    $('#tabContent').innerHTML = '<div class="empty"><div class="big">⚠️</div>Impossible de charger ton suivi nutrition.<br>Vérifie ta connexion et réessaie.</div>';
+  }
+}
+
+function nutriConsumed(){
+  const t = { prot:0, gluc:0, lip:0, kcal:0 };
+  _nutriToday.forEach(r => MACROS.forEach(m => { t[m.k] += Number(r[m.k]) || 0; }));
+  return t;
+}
+
+function drawNutrition(){
+  const conf = _nutriConf;
+  if(!conf.configured){
+    $('#tabContent').innerHTML = '<div class="empty"><div class="big">🍽️</div>'
+      + '<b style="display:block;color:var(--ink);font-size:16px;margin-bottom:8px">Suivi nutrition pas encore configuré</b>'
+      + '<p>Coach Ron doit d\'abord déposer tes objectifs. Reviens un peu plus tard.</p></div>';
+    return;
+  }
+  const obj = conf.objectifs || {};
+  const used = nutriConsumed();
+  const actifs = MACROS.filter(m => obj[m.k] > 0);
+
+  // Décompte : ce qu'il reste, macro par macro.
+  const jauges = actifs.map(m => {
+    const cible = obj[m.k], pris = used[m.k], reste = cible - pris;
+    const pct = Math.max(0, Math.min(100, (pris / cible) * 100));
+    const over = reste < 0;
+    return '<div class="nu-macro">'
+      + '<div class="nu-macro-top">'
+      +   '<span class="nu-macro-name">'+esc(m.label)+'</span>'
+      +   '<span class="nu-macro-val'+(over ? ' over' : '')+'">'
+      +     (over ? '+'+Math.abs(Math.round(reste)) : Math.round(reste))
+      +     '<small>'+(over ? ' '+m.unit+' de trop' : ' '+m.unit+' restants')+'</small></span>'
+      + '</div>'
+      + '<div class="nu-bar"><div class="nu-bar-fill'+(over ? ' over' : '')+'" style="width:'+pct+'%"></div></div>'
+      + '<div class="nu-macro-sub">'+Math.round(pris)+' / '+Math.round(cible)+' '+m.unit+'</div>'
+      + '</div>';
+  }).join('');
+
+  const repasPills = (conf.repas || []).map(r =>
+    '<button type="button" class="ci-pill'+(r === _nutriRepas ? ' on' : '')+'" onclick="nutriPickRepas(this,\''+r.replace(/'/g,"\\'")+'\')">'+esc(r)+'</button>'
+  ).join('');
+
+  const dejaPris = _nutriToday.map(r => {
+    const macros = MACROS.filter(m => Number(r[m.k]) > 0)
+      .map(m => macroText(m, Number(r[m.k]))).join(' · ');
+    return '<div class="nu-item">'
+      + '<div class="nu-item-head"><b>'+esc(r.repas || 'Repas')+'</b><span>'+esc(fmtHHMM(r.horodatage))+'</span></div>'
+      + (r.description ? '<div class="nu-item-desc">'+esc(r.description)+'</div>' : '')
+      + (macros ? '<div class="nu-item-macros">'+esc(macros)+'</div>' : '')
+      + (r.photoUrl ? '<a class="nu-item-photo" href="'+esc(r.photoUrl)+'" target="_blank" rel="noopener">Voir la photo</a>' : '')
+      + '</div>';
+  }).join('');
+
+  $('#tabContent').innerHTML =
+      (conf.notes ? '<div class="nu-notes">'+esc(conf.notes)+'</div>' : '')
+    + '<div class="ci-section">'
+    +   '<div class="ci-section-title">Il te reste aujourd\'hui</div>'
+    +   '<div class="nu-macros">'+jauges+'</div>'
+    + '</div>'
+
+    + '<div class="ci-section">'
+    +   '<div class="ci-section-title">Ajouter un repas</div>'
+    +   '<div class="ci-card"><div class="ci-label">🍽️ Quel repas ?</div><div class="ci-pills">'+repasPills+'</div></div>'
+    +   '<div class="ci-card"><div class="ci-label">📝 Ce que tu as mangé</div>'
+    +     '<textarea class="ci-textarea" id="nuDesc" placeholder="ex. 150g poulet, riz complet, brocolis..."></textarea></div>'
+    +   '<div class="ci-card"><div class="ci-label">📷 Photo du repas <span class="ci-opt">(optionnel · max '+MAX_PHOTO_MB+' Mo)</span></div>'
+    +     '<label class="nu-photo"><input type="file" accept="image/*" id="nuPhoto" onchange="nutriPhotoChange()"><span id="nuPhotoText">Choisir une photo</span></label></div>'
+    +   '<div class="ci-card"><div class="ci-label">⚖️ Macros de ce repas</div><div class="nu-inputs">'
+    +     actifs.map(m => '<label class="nu-input"><span>'+esc(m.label)+'</span>'
+    +       '<input type="number" inputmode="decimal" min="0" step="1" id="nu_'+m.k+'" placeholder="0">'
+    +       '<i>'+m.unit+'</i></label>').join('')
+    +   '</div></div>'
+    +   '<button type="button" class="ci-submit" id="nuSubmit" onclick="nutriSendMeal()">📲 Envoyer ce repas</button>'
+    + '</div>'
+
+    + (dejaPris
+        ? '<div class="ci-section"><div class="ci-section-title">Déjà pris aujourd\'hui</div>'+dejaPris+'</div>'
+        : '');
+}
+
+function nutriPickRepas(btn, val){
+  btn.parentElement.querySelectorAll('.ci-pill').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  _nutriRepas = val;
+}
+
+function nutriPhotoChange(){
+  const f = $('#nuPhoto').files[0];
+  _nutriPhoto = f || null;
+  $('#nuPhotoText').textContent = f ? ('✓ ' + f.name) : 'Choisir une photo';
+}
+
+// Envoie la photo en morceaux (même mécanique que la vidéo d'entraînement,
+// action serveur généralisée) puis renvoie son URL Drive.
+async function uploadPhotoChunked(file, onProgress){
+  const chunkSize = PHOTO_CHUNK_MB * 1024 * 1024;
+  const total = Math.ceil(file.size / chunkSize) || 1;
+  const uploadId = Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  let last = null;
+  for(let index = 0; index < total; index++){
+    const part = file.slice(index * chunkSize, Math.min((index+1) * chunkSize, file.size));
+    const b64 = await fileToBase64(part);
+    if(onProgress) onProgress(index + 1, total);
+    last = await api({
+      action:'indivUploadChunk', token:S.token, uploadId, index, total,
+      chunk:b64, videoName:file.name, videoMime:file.type, subfolder:'REPAS'
+    });
+    if(!last.ok) throw new Error(last.error || 'Erreur d\'envoi de la photo');
+  }
+  return last.videoUrl || '';
+}
+function fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function nutriBuildMsg(meal){
+  let m = '📋 *Repas* — ' + (S.user ? S.user.name : '') + ' — ' + headerDateStr() + '\n\n';
+  m += '*' + waSafe(meal.repas) + '*\n';
+  if(meal.description) m += waSafe(meal.description) + '\n';
+  const parts = MACROS.filter(x => meal[x.k] > 0).map(x => macroText(x, meal[x.k]));
+  if(parts.length) m += '⚖️ ' + parts.join(' · ') + '\n';
+  if(meal.photoUrl) m += '_Photo :_ ' + meal.photoUrl + '\n';
+
+  // Décompte après ce repas — c'est l'info utile pour le coach comme pour
+  // l'athlète, plus que les totaux bruts.
+  const obj = (_nutriConf && _nutriConf.objectifs) || {};
+  const used = nutriConsumed();
+  const reste = MACROS.filter(x => obj[x.k] > 0).map(x => {
+    const r = obj[x.k] - (used[x.k] + (Number(meal[x.k]) || 0));
+    return x.label + ' : ' + (r < 0 ? '+'+Math.abs(Math.round(r))+' de trop' : Math.round(r)+' ' + x.unit);
+  });
+  if(reste.length) m += '\n*Reste aujourd\'hui*\n' + reste.join('\n') + '\n';
+  return m;
+}
+
+async function nutriSendMeal(){
+  const btn = $('#nuSubmit');
+  const description = $('#nuDesc').value.trim();
+  const meal = { repas:_nutriRepas, description, photoUrl:'' };
+  MACROS.forEach(m => { const el = $('#nu_'+m.k); meal[m.k] = el ? (parseFloat(el.value) || 0) : 0; });
+
+  const aucuneMacro = MACROS.every(m => !meal[m.k]);
+  if(!description && !_nutriPhoto && aucuneMacro){
+    showToast('Ajoute au moins une photo, une description ou des macros', true);
+    return;
+  }
+  if(_nutriPhoto && _nutriPhoto.size > MAX_PHOTO_MB * 1024 * 1024){
+    showToast('Photo trop lourde (max '+MAX_PHOTO_MB+' Mo)', true);
+    return;
+  }
+
+  // Sans photo : rien à attendre, on enregistre en fire-and-forget et on
+  // navigue dans la foulée du clic — c'est la seule façon de garder les
+  // emoji intacts sur iOS (voir submitAllTrainingLogs).
+  if(!_nutriPhoto){
+    try{
+      fetch(API, {
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify(Object.assign({ action:'indivNutritionMeal', token:S.token }, meal)),
+        keepalive:true
+      }).catch(() => {});
+    }catch(_){}
+    window.location.href = waUrl(nutriBuildMsg(meal));
+    return;
+  }
+
+  // Avec photo : l'envoi prend du temps, donc le geste utilisateur a expiré.
+  // On termine par un vrai lien à taper, comme pour les vidéos.
+  btn.disabled = true; btn.textContent = 'ENVOI DE LA PHOTO...';
+  try{
+    meal.photoUrl = await uploadPhotoChunked(_nutriPhoto, (i, tot) => {
+      btn.textContent = 'ENVOI DE LA PHOTO ('+i+'/'+tot+')...';
+    });
+    const res = await api(Object.assign({ action:'indivNutritionMeal', token:S.token }, meal));
+    if(!res.ok) throw new Error(res.error || 'Erreur serveur');
+    const url = waUrl(nutriBuildMsg(meal));
+    btn.outerHTML = '<a class="ci-submit" id="nuSubmit" style="display:block;text-align:center;text-decoration:none;line-height:1.2" href="'
+                  + url.replace(/"/g,'&quot;') + '">📲 OUVRIR WHATSAPP</a>';
+    showToast('Photo envoyée ✓ — tape « Ouvrir WhatsApp »');
+  }catch(err){
+    console.warn('Envoi repas échoué:', err);
+    showToast('Échec de l\'envoi — réessaie', true);
+    btn.disabled = false; btn.textContent = '📲 Envoyer ce repas';
+  }
 }
 
 function esc(s){
