@@ -324,6 +324,9 @@ input[type=range].ci-slider-input::-moz-range-thumb{
   text-align:right;outline:none;font-family:inherit;padding:0;-moz-appearance:textfield}
 .nu-input input::-webkit-outer-spin-button,.nu-input input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .nu-input i{font-style:normal;font-size:11px;color:var(--muted)}
+.nu-input-auto{background:var(--navy-2);border-style:dashed}
+.nu-input-auto input{color:var(--orange);pointer-events:none}
+.nu-hint{font-size:11px;color:var(--muted);margin-top:9px;line-height:1.45}
 .nu-item{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:9px}
 .nu-item-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
 .nu-item-head b{font-size:13px;color:var(--ink)}
@@ -1130,6 +1133,25 @@ const MACROS = [
 const MAX_PHOTO_MB = 12;
 const PHOTO_CHUNK_MB = 3;
 
+// Facteurs d'Atwater : les calories se déduisent des trois macros, elles ne
+// sont donc pas saisies mais calculées (Ron, 2026-08-29). Évite aussi les
+// incohérences entre macros et calories déclarées.
+const KCAL_PER_G = { prot: 4, gluc: 4, lip: 9 };
+function nutriCalcKcal(){
+  let k = 0;
+  Object.keys(KCAL_PER_G).forEach(key => {
+    const el = $('#nu_' + key);
+    if(el) k += (parseFloat(el.value) || 0) * KCAL_PER_G[key];
+  });
+  return Math.round(k);
+}
+// Recalcule à chaque frappe sur protéines / glucides / lipides.
+function nutriMacroInput(){
+  const k = nutriCalcKcal();
+  const el = $('#nu_kcal');
+  if(el) el.value = k || '';
+}
+
 // « 45 g protéines » mais « 600 kcal » — répéter le libellé pour les calories
 // donnerait « 600 kcal calories ».
 function macroText(m, val){
@@ -1243,10 +1265,17 @@ function drawNutrition(){
     +   '<div class="ci-card"><div class="ci-label">📷 Photo du repas <span class="ci-opt">(optionnel · max '+MAX_PHOTO_MB+' Mo)</span></div>'
     +     '<label class="nu-photo"><input type="file" accept="image/*" id="nuPhoto" onchange="nutriPhotoChange()"><span id="nuPhotoText">Choisir une photo</span></label></div>'
     +   '<div class="ci-card"><div class="ci-label">⚖️ Macros de ce repas</div><div class="nu-inputs">'
-    +     actifs.map(m => '<label class="nu-input"><span>'+esc(m.label)+'</span>'
-    +       '<input type="number" inputmode="decimal" min="0" step="1" id="nu_'+m.k+'" placeholder="0">'
-    +       '<i>'+m.unit+'</i></label>').join('')
-    +   '</div></div>'
+    +     actifs.map(m => m.k === 'kcal'
+          // Les calories ne se saisissent pas : elles découlent des macros.
+          ? '<label class="nu-input nu-input-auto"><span>'+esc(m.label)+'</span>'
+            + '<input type="number" id="nu_kcal" readonly tabindex="-1" placeholder="0">'
+            + '<i>'+m.unit+'</i></label>'
+          : '<label class="nu-input"><span>'+esc(m.label)+'</span>'
+            + '<input type="number" inputmode="decimal" min="0" step="1" id="nu_'+m.k+'" placeholder="0" oninput="nutriMacroInput()">'
+            + '<i>'+m.unit+'</i></label>').join('')
+    +   '</div>'
+    +   (obj.kcal > 0 ? '<div class="nu-hint">Calories calculées automatiquement : 4 kcal/g pour les protéines et les glucides, 9 kcal/g pour les lipides.</div>' : '')
+    +   '</div>'
     +   '<button type="button" class="ci-submit" id="nuSubmit" onclick="nutriSendMeal()">📲 Envoyer ce repas</button>'
     + '</div>'
 
@@ -1320,6 +1349,9 @@ async function nutriSendMeal(){
   const description = $('#nuDesc').value.trim();
   const meal = { repas:_nutriRepas, description, photoUrl:'' };
   MACROS.forEach(m => { const el = $('#nu_'+m.k); meal[m.k] = el ? (parseFloat(el.value) || 0) : 0; });
+  // Toujours recalculé, y compris quand le coach n'a pas fixé d'objectif
+  // calorique (le champ n'est alors pas affiché, mais la valeur est utile).
+  meal.kcal = nutriCalcKcal();
 
   const aucuneMacro = MACROS.every(m => !meal[m.k]);
   if(!description && !_nutriPhoto && aucuneMacro){
