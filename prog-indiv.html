@@ -316,6 +316,7 @@ input[type=range].ci-slider-input::-moz-range-thumb{
 .nu-photo{display:flex;align-items:center;gap:8px;background:var(--navy);border:1.5px solid var(--line);
   border-radius:10px;padding:12px;font-size:13px;color:var(--muted)}
 .nu-photo input{display:none}
+.nu-hint-photo{margin:0 0 10px;color:var(--orange)}
 .nu-inputs{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .nu-input{display:flex;align-items:center;gap:6px;background:var(--navy);border:1.5px solid var(--line);
   border-radius:10px;padding:8px 10px}
@@ -1175,8 +1176,6 @@ const MACROS = [
   { k:'lip',  label:'Lipides',   unit:'g',    emoji:'🥑' },
   { k:'kcal', label:'Calories',  unit:'kcal', emoji:'🔥' }
 ];
-const MAX_PHOTO_MB = 12;
-const PHOTO_CHUNK_MB = 3;
 
 // Facteurs d'Atwater : les calories se déduisent des trois macros, elles ne
 // sont donc pas saisies mais calculées (Ron, 2026-08-29). Évite aussi les
@@ -1224,7 +1223,6 @@ function nutriPlan(){
 }
 let _nutriToday = [];      // repas déjà envoyés aujourd'hui
 let _nutriRepas = null;    // créneau sélectionné
-let _nutriPhoto = null;    // File choisi (pas encore envoyé)
 let _nutriEditId = null;   // mealId en cours de modification (null = nouveau repas)
 
 function nutriNowHHMM(){
@@ -1415,8 +1413,7 @@ function drawNutrition(){
     +     '<input type="time" class="ci-input nu-time" id="nuHeure" value="'+esc(heureVal)+'"></div>'
     +   '<div class="ci-card"><div class="ci-label">📝 Ce que tu as mangé</div>'
     +     '<textarea class="ci-textarea" id="nuDesc" placeholder="ex. 150g poulet, riz complet, brocolis..."></textarea></div>'
-    +   '<div class="ci-card"><div class="ci-label">📷 Photo du repas <span class="ci-opt">(optionnel · max '+MAX_PHOTO_MB+' Mo)</span></div>'
-    +     '<label class="nu-photo"><input type="file" accept="image/*" id="nuPhoto" onchange="nutriPhotoChange()"><span id="nuPhotoText">Choisir une photo</span></label></div>'
+    +   '<div class="nu-hint nu-hint-photo">📷 La photo de ton repas s\'envoie directement dans WhatsApp, juste après ce message.</div>'
     +   '<div class="ci-card"><div class="ci-label">⚖️ Macros de ce repas</div><div class="nu-inputs">'
     +     actifs.map(m => m.k === 'kcal'
           // Les calories ne se saisissent pas : elles découlent des macros.
@@ -1467,7 +1464,6 @@ function nutriStartEdit(idx){
   if(!r || !r.mealId) return;
   _nutriEditId = r.mealId;
   _nutriRepas = r.repas;
-  _nutriPhoto = null;
   drawNutrition();
   $('#nuDesc').value = r.description || '';
   $('#nuHeure').value = nutriHeureOf(r);
@@ -1481,43 +1477,9 @@ function nutriStartEdit(idx){
 
 function nutriCancelEdit(){
   _nutriEditId = null;
-  _nutriPhoto = null;
   drawNutrition();
 }
 
-function nutriPhotoChange(){
-  const f = $('#nuPhoto').files[0];
-  _nutriPhoto = f || null;
-  $('#nuPhotoText').textContent = f ? ('✓ ' + f.name) : 'Choisir une photo';
-}
-
-// Envoie la photo en morceaux (même mécanique que la vidéo d'entraînement,
-// action serveur généralisée) puis renvoie son URL Drive.
-async function uploadPhotoChunked(file, onProgress){
-  const chunkSize = PHOTO_CHUNK_MB * 1024 * 1024;
-  const total = Math.ceil(file.size / chunkSize) || 1;
-  const uploadId = Date.now() + '_' + Math.random().toString(36).slice(2, 10);
-  let last = null;
-  for(let index = 0; index < total; index++){
-    const part = file.slice(index * chunkSize, Math.min((index+1) * chunkSize, file.size));
-    const b64 = await fileToBase64(part);
-    if(onProgress) onProgress(index + 1, total);
-    last = await api({
-      action:'indivUploadChunk', token:S.token, uploadId, index, total,
-      chunk:b64, videoName:file.name, videoMime:file.type, subfolder:'REPAS'
-    });
-    if(!last.ok) throw new Error(last.error || 'Erreur d\'envoi de la photo');
-  }
-  return last.videoUrl || '';
-}
-function fileToBase64(file){
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 // À composer AVANT d'ajouter le repas à _nutriToday : le bloc « reste »
 // ajoute lui-même le repas en cours au cumul déjà enregistré.
@@ -1532,7 +1494,7 @@ function nutriBuildMsg(meal, estModif){
     .map(x => x.emoji + ' ' + x.label + ' : ' + Math.round(meal[x.k]) + ' ' + x.unit);
   if(lignes.length) m += '\n' + lignes.join('\n') + '\n';
 
-  if(meal.photoUrl) m += '\n📷 Photo : ' + meal.photoUrl + '\n';
+  if(meal.photoUrl) m += '\n📷 Photo : ' + meal.photoUrl + '\n';   // repas d'avant le retrait de l'upload
 
   // Décompte après ce repas — l'info utile pour le coach comme pour
   // l'athlète, plus que les totaux bruts.
@@ -1545,6 +1507,10 @@ function nutriBuildMsg(meal, estModif){
                   : Math.round(r) + ' ' + x.unit);
   });
   if(reste.length) m += '\n🎯 *Reste aujourd\'hui*\n' + reste.join('\n') + '\n';
+  // Rappel placé ici à dessein : l'athlète le lit dans WhatsApp, message
+  // prêt à partir, appareil photo à portée — pas dans le formulaire, où elle
+  // l'aurait oublié le temps d'arriver jusqu'ici.
+  m += '\n📷 _Envoie la photo de ce repas juste après ce message._';
   return m;
 }
 
@@ -1571,8 +1537,12 @@ function nutriPushLocal(meal){
   drawNutrition();
 }
 
-async function nutriSendMeal(){
-  const btn = $('#nuSubmit');
+// Envoi d'un repas : plus d'upload de photo depuis l'appli (Ron, 2026-08-30 —
+// les athlètes envoient la photo directement dans WhatsApp juste après). Il
+// ne reste donc qu'un seul chemin : écriture en fire-and-forget puis
+// navigation immédiate, indispensable pour que les emoji arrivent intacts
+// sur iOS (voir submitAllTrainingLogs).
+function nutriSendMeal(){
   const description = $('#nuDesc').value.trim();
   const edition = _nutriEditId;   // figé ici : nutriPushLocal le remet à null
   const meal = {
@@ -1586,55 +1556,22 @@ async function nutriSendMeal(){
   // calorique (le champ n'est alors pas affiché, mais la valeur est utile).
   meal.kcal = nutriCalcKcal();
 
-  const aucuneMacro = MACROS.every(m => !meal[m.k]);
-  if(!description && !_nutriPhoto && aucuneMacro){
-    showToast('Ajoute au moins une photo, une description ou des macros', true);
-    return;
-  }
-  if(_nutriPhoto && _nutriPhoto.size > MAX_PHOTO_MB * 1024 * 1024){
-    showToast('Photo trop lourde (max '+MAX_PHOTO_MB+' Mo)', true);
+  if(!description && MACROS.every(m => !meal[m.k])){
+    showToast('Ajoute au moins une description ou des macros', true);
     return;
   }
   const action = edition ? 'indivNutritionMealUpdate' : 'indivNutritionMeal';
 
-  // Sans photo : rien à attendre, on enregistre en fire-and-forget et on
-  // navigue dans la foulée du clic — c'est la seule façon de garder les
-  // emoji intacts sur iOS (voir submitAllTrainingLogs).
-  if(!_nutriPhoto){
-    try{
-      fetch(API, {
-        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify(Object.assign({ action, token:S.token }, meal)),
-        keepalive:true
-      }).catch(() => {});
-    }catch(_){}
-    const url = waUrl(nutriBuildMsg(meal, edition));
-    nutriPushLocal(meal);   // décompte à jour + formulaire vidé avant de partir
-    window.location.href = url;
-    return;
-  }
-
-  // Avec photo : l'envoi prend du temps, donc le geste utilisateur a expiré.
-  // On termine par un vrai lien à taper, comme pour les vidéos.
-  btn.disabled = true; btn.textContent = 'ENVOI DE LA PHOTO...';
   try{
-    meal.photoUrl = await uploadPhotoChunked(_nutriPhoto, (i, tot) => {
-      btn.textContent = 'ENVOI DE LA PHOTO ('+i+'/'+tot+')...';
-    });
-    const res = await api(Object.assign({ action, token:S.token }, meal));
-    if(!res.ok) throw new Error(res.error || 'Erreur serveur');
-    const url = waUrl(nutriBuildMsg(meal, edition));
-    nutriPushLocal(meal);   // redessine : décompte à jour + formulaire vidé
-    // Puis on remet le lien à taper à la place du bouton (le redessin l'a
-    // recréé sous sa forme normale).
-    $('#nuSubmit').outerHTML = '<a class="ci-submit" id="nuSubmit" style="display:block;text-align:center;text-decoration:none;line-height:1.2" href="'
-                  + url.replace(/"/g,'&quot;') + '">📲 OUVRIR WHATSAPP</a>';
-    showToast('Photo envoyée ✓ — tape « Ouvrir WhatsApp »');
-  }catch(err){
-    console.warn('Envoi repas échoué:', err);
-    showToast('Échec de l\'envoi — réessaie', true);
-    btn.disabled = false; btn.textContent = '📲 Envoyer ce repas';
-  }
+    fetch(API, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(Object.assign({ action, token:S.token }, meal)),
+      keepalive:true
+    }).catch(() => {});
+  }catch(_){}
+  const url = waUrl(nutriBuildMsg(meal, edition));
+  nutriPushLocal(meal);   // décompte à jour + formulaire vidé avant de partir
+  window.location.href = url;
 }
 
 function esc(s){
