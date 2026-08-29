@@ -1124,11 +1124,14 @@ function waUrl(txt){
    chargement), pas depuis un cumul gardé en mémoire : l'athlète ferme
    l'appli entre deux repas, et le compte doit rester juste au retour.
    =========================================================================== */
+// L'emoji sert au message WhatsApp : une icône par macro rend le message
+// scannable d'un coup d'œil, et la même icône est reprise dans le bloc
+// « reste aujourd'hui » pour que la correspondance soit immédiate.
 const MACROS = [
-  { k:'prot', label:'Protéines', unit:'g' },
-  { k:'gluc', label:'Glucides',  unit:'g' },
-  { k:'lip',  label:'Lipides',   unit:'g' },
-  { k:'kcal', label:'Calories',  unit:'kcal' }
+  { k:'prot', label:'Protéines', unit:'g',    emoji:'🥩' },
+  { k:'gluc', label:'Glucides',  unit:'g',    emoji:'🍚' },
+  { k:'lip',  label:'Lipides',   unit:'g',    emoji:'🥑' },
+  { k:'kcal', label:'Calories',  unit:'kcal', emoji:'🔥' }
 ];
 const MAX_PHOTO_MB = 12;
 const PHOTO_CHUNK_MB = 3;
@@ -1324,24 +1327,43 @@ function fileToBase64(file){
   });
 }
 
+// À composer AVANT d'ajouter le repas à _nutriToday : le bloc « reste »
+// ajoute lui-même le repas en cours au cumul déjà enregistré.
 function nutriBuildMsg(meal){
-  let m = '📋 *Repas* — ' + (S.user ? S.user.name : '') + ' — ' + headerDateStr() + '\n\n';
+  let m = '🍽️ *Repas* — ' + (S.user ? S.user.name : '') + ' — ' + headerDateStr() + '\n\n';
   m += '*' + waSafe(meal.repas) + '*\n';
   if(meal.description) m += waSafe(meal.description) + '\n';
-  const parts = MACROS.filter(x => meal[x.k] > 0).map(x => macroText(x, meal[x.k]));
-  if(parts.length) m += '⚖️ ' + parts.join(' · ') + '\n';
-  if(meal.photoUrl) m += '_Photo :_ ' + meal.photoUrl + '\n';
 
-  // Décompte après ce repas — c'est l'info utile pour le coach comme pour
+  const lignes = MACROS.filter(x => meal[x.k] > 0)
+    .map(x => x.emoji + ' ' + x.label + ' : ' + Math.round(meal[x.k]) + ' ' + x.unit);
+  if(lignes.length) m += '\n' + lignes.join('\n') + '\n';
+
+  if(meal.photoUrl) m += '\n📷 Photo : ' + meal.photoUrl + '\n';
+
+  // Décompte après ce repas — l'info utile pour le coach comme pour
   // l'athlète, plus que les totaux bruts.
   const obj = (_nutriConf && _nutriConf.objectifs) || {};
   const used = nutriConsumed();
   const reste = MACROS.filter(x => obj[x.k] > 0).map(x => {
     const r = obj[x.k] - (used[x.k] + (Number(meal[x.k]) || 0));
-    return x.label + ' : ' + (r < 0 ? '+'+Math.abs(Math.round(r))+' de trop' : Math.round(r)+' ' + x.unit);
+    return x.emoji + ' ' + x.label + ' : '
+         + (r < 0 ? '+' + Math.abs(Math.round(r)) + ' ' + x.unit + ' de trop'
+                  : Math.round(r) + ' ' + x.unit);
   });
-  if(reste.length) m += '\n*Reste aujourd\'hui*\n' + reste.join('\n') + '\n';
+  if(reste.length) m += '\n🎯 *Reste aujourd\'hui*\n' + reste.join('\n') + '\n';
   return m;
+}
+
+// Ajoute le repas au cumul local et redessine : le décompte est à jour et le
+// formulaire vidé immédiatement, sans attendre un rechargement de la page.
+function nutriPushLocal(meal){
+  _nutriToday.push({
+    horodatage: new Date().toISOString(),
+    repas: meal.repas, description: meal.description,
+    prot: meal.prot, gluc: meal.gluc, lip: meal.lip, kcal: meal.kcal,
+    photoUrl: meal.photoUrl || ''
+  });
+  drawNutrition();
 }
 
 async function nutriSendMeal(){
@@ -1374,7 +1396,9 @@ async function nutriSendMeal(){
         keepalive:true
       }).catch(() => {});
     }catch(_){}
-    window.location.href = waUrl(nutriBuildMsg(meal));
+    const url = waUrl(nutriBuildMsg(meal));
+    nutriPushLocal(meal);   // décompte à jour + formulaire vidé avant de partir
+    window.location.href = url;
     return;
   }
 
@@ -1388,7 +1412,10 @@ async function nutriSendMeal(){
     const res = await api(Object.assign({ action:'indivNutritionMeal', token:S.token }, meal));
     if(!res.ok) throw new Error(res.error || 'Erreur serveur');
     const url = waUrl(nutriBuildMsg(meal));
-    btn.outerHTML = '<a class="ci-submit" id="nuSubmit" style="display:block;text-align:center;text-decoration:none;line-height:1.2" href="'
+    nutriPushLocal(meal);   // redessine : décompte à jour + formulaire vidé
+    // Puis on remet le lien à taper à la place du bouton (le redessin l'a
+    // recréé sous sa forme normale).
+    $('#nuSubmit').outerHTML = '<a class="ci-submit" id="nuSubmit" style="display:block;text-align:center;text-decoration:none;line-height:1.2" href="'
                   + url.replace(/"/g,'&quot;') + '">📲 OUVRIR WHATSAPP</a>';
     showToast('Photo envoyée ✓ — tape « Ouvrir WhatsApp »');
   }catch(err){
@@ -1425,6 +1452,11 @@ function recheckOnReturn(){
     // retour de WhatsApp. Sans ça, la pastille de la séance qu'on vient
     // d'envoyer resterait orange jusqu'au prochain chargement complet.
     loadPlan();
+  } else if(S.tab === 'nutrition'){
+    // Idem : recharge les repas du jour depuis le serveur pour repartir sur
+    // des chiffres certains (le cumul local ajouté à l'envoi n'est qu'une
+    // avance d'affichage), et vide le formulaire pour le repas suivant.
+    renderNutrition();
   }
 }
 document.addEventListener('visibilitychange', () => {
