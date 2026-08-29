@@ -334,6 +334,23 @@ input[type=range].ci-slider-input::-moz-range-thumb{
 .nu-item-desc{font-size:13px;color:var(--ink);margin-bottom:3px}
 .nu-item-macros{font-size:11.5px;color:var(--muted)}
 .nu-item-photo{display:inline-block;margin-top:6px;font-size:11.5px;color:var(--orange)}
+.nu-item.editing{border-color:var(--orange);box-shadow:0 0 0 1px var(--orange) inset}
+.nu-item-edit{
+  display:block;margin-top:9px;padding:7px 12px;border-radius:9px;
+  background:var(--navy);border:1px solid var(--line);color:var(--muted);
+  font-size:11.5px;font-weight:700;letter-spacing:.04em;
+}
+.nu-item-edit:active{background:var(--navy-3)}
+.nu-editbar{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:rgba(234,141,73,.12);border:1px solid var(--orange);border-radius:12px;
+  padding:10px 12px;margin-bottom:10px;font-size:12px;color:var(--orange);font-weight:700;
+}
+.nu-editbar button{
+  padding:6px 12px;border-radius:8px;background:var(--navy);border:1px solid var(--orange);
+  color:var(--orange);font-size:11.5px;font-weight:700;flex:0 0 auto;
+}
+.nu-time{max-width:170px}
 
 @media(min-width:640px){ :root{--pad:22px} }
 </style>
@@ -1166,6 +1183,17 @@ let _nutriConf = null;     // { objectifs, repas[], notes }
 let _nutriToday = [];      // repas déjà envoyés aujourd'hui
 let _nutriRepas = null;    // créneau sélectionné
 let _nutriPhoto = null;    // File choisi (pas encore envoyé)
+let _nutriEditId = null;   // mealId en cours de modification (null = nouveau repas)
+
+function nutriNowHHMM(){
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+// Heure affichée pour un repas : celle saisie par l'athlète si elle existe,
+// sinon l'horodatage d'enregistrement (repas d'avant l'ajout du champ).
+function nutriHeureOf(r){
+  return r.heure || (r.horodatage ? fmtHHMM(r.horodatage) : '');
+}
 
 async function renderNutrition(){
   $('#tabContent').innerHTML = '<div class="spin"></div>';
@@ -1203,9 +1231,16 @@ async function renderNutrition(){
   }
 }
 
-function nutriConsumed(){
+// `exclureId` sert au calcul du « reste » lors d'une MODIFICATION : le cumul
+// contient encore l'ancienne version du repas qu'on est en train de corriger,
+// il faut donc l'en retirer avant d'y ajouter la nouvelle — sinon le repas
+// serait compté deux fois.
+function nutriConsumed(exclureId){
   const t = { prot:0, gluc:0, lip:0, kcal:0 };
-  _nutriToday.forEach(r => MACROS.forEach(m => { t[m.k] += Number(r[m.k]) || 0; }));
+  _nutriToday.forEach(r => {
+    if(exclureId && r.mealId === exclureId) return;
+    MACROS.forEach(m => { t[m.k] += Number(r[m.k]) || 0; });
+  });
   return t;
 }
 
@@ -1242,16 +1277,21 @@ function drawNutrition(){
     '<button type="button" class="ci-pill'+(r === _nutriRepas ? ' on' : '')+'" onclick="nutriPickRepas(this,\''+r.replace(/'/g,"\\'")+'\')">'+esc(r)+'</button>'
   ).join('');
 
-  const dejaPris = _nutriToday.map(r => {
+  const dejaPris = _nutriToday.map((r, i) => {
     const macros = MACROS.filter(m => Number(r[m.k]) > 0)
       .map(m => macroText(m, Number(r[m.k]))).join(' · ');
-    return '<div class="nu-item">'
-      + '<div class="nu-item-head"><b>'+esc(r.repas || 'Repas')+'</b><span>'+esc(fmtHHMM(r.horodatage))+'</span></div>'
+    const edit = r.mealId ? i : -1;   // repas d'avant l'ajout du mealId : non modifiables
+    return '<div class="nu-item'+(r.mealId && r.mealId === _nutriEditId ? ' editing' : '')+'">'
+      + '<div class="nu-item-head"><b>'+esc(r.repas || 'Repas')+'</b><span>'+esc(nutriHeureOf(r))+'</span></div>'
       + (r.description ? '<div class="nu-item-desc">'+esc(r.description)+'</div>' : '')
       + (macros ? '<div class="nu-item-macros">'+esc(macros)+'</div>' : '')
       + (r.photoUrl ? '<a class="nu-item-photo" href="'+esc(r.photoUrl)+'" target="_blank" rel="noopener">Voir la photo</a>' : '')
+      + (edit >= 0 ? '<button type="button" class="nu-item-edit" onclick="nutriStartEdit('+edit+')">Modifier</button>' : '')
       + '</div>';
   }).join('');
+
+  const enEdition = !!_nutriEditId;
+  const heureVal = $('#nuHeure') ? $('#nuHeure').value : nutriNowHHMM();
 
   $('#tabContent').innerHTML =
       (conf.notes ? '<div class="nu-notes">'+esc(conf.notes)+'</div>' : '')
@@ -1261,8 +1301,12 @@ function drawNutrition(){
     + '</div>'
 
     + '<div class="ci-section">'
-    +   '<div class="ci-section-title">Ajouter un repas</div>'
+    +   '<div class="ci-section-title">'+(enEdition ? 'Modifier le repas' : 'Ajouter un repas')+'</div>'
+    +   (enEdition ? '<div class="nu-editbar">Tu modifies un repas déjà envoyé.'
+                   + '<button type="button" onclick="nutriCancelEdit()">Annuler</button></div>' : '')
     +   '<div class="ci-card"><div class="ci-label">🍽️ Quel repas ?</div><div class="ci-pills">'+repasPills+'</div></div>'
+    +   '<div class="ci-card"><div class="ci-label">🕐 À quelle heure ?</div>'
+    +     '<input type="time" class="ci-input nu-time" id="nuHeure" value="'+esc(heureVal)+'"></div>'
     +   '<div class="ci-card"><div class="ci-label">📝 Ce que tu as mangé</div>'
     +     '<textarea class="ci-textarea" id="nuDesc" placeholder="ex. 150g poulet, riz complet, brocolis..."></textarea></div>'
     +   '<div class="ci-card"><div class="ci-label">📷 Photo du repas <span class="ci-opt">(optionnel · max '+MAX_PHOTO_MB+' Mo)</span></div>'
@@ -1279,7 +1323,8 @@ function drawNutrition(){
     +   '</div>'
     +   (obj.kcal > 0 ? '<div class="nu-hint">Calories calculées automatiquement : 4 kcal/g pour les protéines et les glucides, 9 kcal/g pour les lipides.</div>' : '')
     +   '</div>'
-    +   '<button type="button" class="ci-submit" id="nuSubmit" onclick="nutriSendMeal()">📲 Envoyer ce repas</button>'
+    +   '<button type="button" class="ci-submit" id="nuSubmit" onclick="nutriSendMeal()">📲 '
+    +     (enEdition ? 'Enregistrer la modification' : 'Envoyer ce repas') + '</button>'
     + '</div>'
 
     + (dejaPris
@@ -1291,6 +1336,30 @@ function nutriPickRepas(btn, val){
   btn.parentElement.querySelectorAll('.ci-pill').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
   _nutriRepas = val;
+}
+
+// Charge un repas déjà envoyé dans le formulaire pour correction.
+function nutriStartEdit(idx){
+  const r = _nutriToday[idx];
+  if(!r || !r.mealId) return;
+  _nutriEditId = r.mealId;
+  _nutriRepas = r.repas;
+  _nutriPhoto = null;
+  drawNutrition();
+  $('#nuDesc').value = r.description || '';
+  $('#nuHeure').value = nutriHeureOf(r);
+  MACROS.forEach(m => {
+    const el = $('#nu_'+m.k);
+    if(el && m.k !== 'kcal') el.value = Number(r[m.k]) || '';
+  });
+  nutriMacroInput();
+  $('#tabContent').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function nutriCancelEdit(){
+  _nutriEditId = null;
+  _nutriPhoto = null;
+  drawNutrition();
 }
 
 function nutriPhotoChange(){
@@ -1329,9 +1398,10 @@ function fileToBase64(file){
 
 // À composer AVANT d'ajouter le repas à _nutriToday : le bloc « reste »
 // ajoute lui-même le repas en cours au cumul déjà enregistré.
-function nutriBuildMsg(meal){
-  let m = '🍽️ *Repas* — ' + (S.user ? S.user.name : '') + ' — ' + headerDateStr() + '\n\n';
-  m += '*' + waSafe(meal.repas) + '*\n';
+function nutriBuildMsg(meal, estModif){
+  let m = '🍽️ *' + (estModif ? 'Repas modifié' : 'Repas') + '* — '
+        + (S.user ? S.user.name : '') + ' — ' + headerDateStr() + '\n\n';
+  m += '*' + waSafe(meal.repas) + (meal.heure ? ' · ' + waSafe(meal.heure) : '') + '*\n';
   if(meal.description) m += waSafe(meal.description) + '\n';
 
   const lignes = MACROS.filter(x => meal[x.k] > 0)
@@ -1343,7 +1413,7 @@ function nutriBuildMsg(meal){
   // Décompte après ce repas — l'info utile pour le coach comme pour
   // l'athlète, plus que les totaux bruts.
   const obj = (_nutriConf && _nutriConf.objectifs) || {};
-  const used = nutriConsumed();
+  const used = nutriConsumed(estModif ? meal.mealId : null);
   const reste = MACROS.filter(x => obj[x.k] > 0).map(x => {
     const r = obj[x.k] - (used[x.k] + (Number(meal[x.k]) || 0));
     return x.emoji + ' ' + x.label + ' : '
@@ -1354,22 +1424,38 @@ function nutriBuildMsg(meal){
   return m;
 }
 
-// Ajoute le repas au cumul local et redessine : le décompte est à jour et le
-// formulaire vidé immédiatement, sans attendre un rechargement de la page.
+// Répercute le repas dans le cumul local et redessine : le décompte est à
+// jour et le formulaire vidé immédiatement, sans attendre un rechargement.
+// En modification, on REMPLACE l'entrée existante — l'ajouter ferait compter
+// le repas deux fois dans le décompte.
 function nutriPushLocal(meal){
-  _nutriToday.push({
+  const entree = {
     horodatage: new Date().toISOString(),
-    repas: meal.repas, description: meal.description,
+    repas: meal.repas, description: meal.description, heure: meal.heure || '',
     prot: meal.prot, gluc: meal.gluc, lip: meal.lip, kcal: meal.kcal,
-    photoUrl: meal.photoUrl || ''
-  });
+    photoUrl: meal.photoUrl || '', mealId: meal.mealId || ''
+  };
+  const i = _nutriToday.findIndex(r => r.mealId && r.mealId === meal.mealId);
+  if(i >= 0){
+    // Une correction sans nouvelle photo conserve celle déjà envoyée.
+    if(!entree.photoUrl) entree.photoUrl = _nutriToday[i].photoUrl || '';
+    _nutriToday[i] = entree;
+  } else {
+    _nutriToday.push(entree);
+  }
+  _nutriEditId = null;
   drawNutrition();
 }
 
 async function nutriSendMeal(){
   const btn = $('#nuSubmit');
   const description = $('#nuDesc').value.trim();
-  const meal = { repas:_nutriRepas, description, photoUrl:'' };
+  const edition = _nutriEditId;   // figé ici : nutriPushLocal le remet à null
+  const meal = {
+    repas: _nutriRepas, description, photoUrl: '',
+    heure: ($('#nuHeure') && $('#nuHeure').value) || nutriNowHHMM(),
+    mealId: edition || (Date.now() + '_' + Math.random().toString(36).slice(2, 8))
+  };
   MACROS.forEach(m => { const el = $('#nu_'+m.k); meal[m.k] = el ? (parseFloat(el.value) || 0) : 0; });
   // Toujours recalculé, y compris quand le coach n'a pas fixé d'objectif
   // calorique (le champ n'est alors pas affiché, mais la valeur est utile).
@@ -1384,6 +1470,7 @@ async function nutriSendMeal(){
     showToast('Photo trop lourde (max '+MAX_PHOTO_MB+' Mo)', true);
     return;
   }
+  const action = edition ? 'indivNutritionMealUpdate' : 'indivNutritionMeal';
 
   // Sans photo : rien à attendre, on enregistre en fire-and-forget et on
   // navigue dans la foulée du clic — c'est la seule façon de garder les
@@ -1392,11 +1479,11 @@ async function nutriSendMeal(){
     try{
       fetch(API, {
         method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify(Object.assign({ action:'indivNutritionMeal', token:S.token }, meal)),
+        body: JSON.stringify(Object.assign({ action, token:S.token }, meal)),
         keepalive:true
       }).catch(() => {});
     }catch(_){}
-    const url = waUrl(nutriBuildMsg(meal));
+    const url = waUrl(nutriBuildMsg(meal, edition));
     nutriPushLocal(meal);   // décompte à jour + formulaire vidé avant de partir
     window.location.href = url;
     return;
@@ -1409,9 +1496,9 @@ async function nutriSendMeal(){
     meal.photoUrl = await uploadPhotoChunked(_nutriPhoto, (i, tot) => {
       btn.textContent = 'ENVOI DE LA PHOTO ('+i+'/'+tot+')...';
     });
-    const res = await api(Object.assign({ action:'indivNutritionMeal', token:S.token }, meal));
+    const res = await api(Object.assign({ action, token:S.token }, meal));
     if(!res.ok) throw new Error(res.error || 'Erreur serveur');
-    const url = waUrl(nutriBuildMsg(meal));
+    const url = waUrl(nutriBuildMsg(meal, edition));
     nutriPushLocal(meal);   // redessine : décompte à jour + formulaire vidé
     // Puis on remet le lien à taper à la place du bouton (le redessin l'a
     // recréé sous sa forme normale).
