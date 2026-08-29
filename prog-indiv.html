@@ -351,6 +351,31 @@ input[type=range].ci-slider-input::-moz-range-thumb{
   color:var(--orange);font-size:11.5px;font-weight:700;flex:0 0 auto;
 }
 .nu-time{max-width:170px}
+.nu-verif{
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);
+  background:var(--navy-2);border:1px solid var(--line);border-radius:10px;
+  padding:9px 12px;margin:8px 0 12px;line-height:1.5;
+}
+.nu-verif b{color:var(--ink)}
+.nu-alerte{
+  background:rgba(224,102,102,.12);border:1px solid var(--red);border-radius:10px;
+  padding:9px 12px;margin-bottom:12px;font-size:11.5px;color:#f4b4b4;line-height:1.45;
+}
+.nu-cible{
+  font-size:11.5px;color:var(--orange);background:rgba(234,141,73,.1);
+  border:1px solid var(--orange);border-radius:9px;padding:8px 11px;margin-top:9px;
+}
+.nu-scen{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);margin-bottom:18px;overflow:hidden}
+.nu-scen-head{
+  width:100%;text-align:left;padding:12px 14px;font-size:12.5px;font-weight:700;color:var(--ink);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.nu-scen-head span{color:var(--orange)}
+.nu-scen-body{padding:0 14px 14px}
+.nu-scen-intro{margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.55}
+.nu-scen-item{background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.nu-scen-item b{display:block;font-size:12.5px;color:var(--ink);margin-bottom:4px}
+.nu-scen-item p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.6}
 
 @media(min-width:640px){ :root{--pad:22px} }
 </style>
@@ -1179,7 +1204,24 @@ function macroText(m, val){
   return m.k === 'kcal' ? (n + ' kcal') : (n + ' ' + m.unit + ' ' + m.label.toLowerCase());
 }
 
-let _nutriConf = null;     // { objectifs, repas[], notes }
+let _nutriConf = null;     // { plans[], notes, scenarios }
+let _nutriPlanIdx = 0;     // plan du jour sélectionné (entraînement / repos)
+let _nutriScenOpen = false;
+
+// Le plan choisi est mémorisé POUR LA JOURNÉE : l'athlète le sélectionne le
+// matin et ne doit pas avoir à le refaire à chaque repas. Clé datée, donc
+// remise à zéro naturellement le lendemain.
+function nutriPlanKey(){ return 'eb_nutri_plan_' + new Date().toISOString().slice(0,10); }
+function nutriLoadPlanChoice(){
+  try{ const v = localStorage.getItem(nutriPlanKey()); return v == null ? null : Number(v); }catch(_){ return null; }
+}
+function nutriSavePlanChoice(i){
+  try{ localStorage.setItem(nutriPlanKey(), String(i)); }catch(_){}
+}
+function nutriPlan(){
+  const p = _nutriConf && _nutriConf.plans;
+  return (p && p[_nutriPlanIdx]) || { nom:'', objectifs:{}, repas:[] };
+}
 let _nutriToday = [];      // repas déjà envoyés aujourd'hui
 let _nutriRepas = null;    // créneau sélectionné
 let _nutriPhoto = null;    // File choisi (pas encore envoyé)
@@ -1208,7 +1250,13 @@ async function renderNutrition(){
     if(!conf.ok) throw new Error(conf.error || 'Erreur serveur');
     _nutriConf = conf;
     _nutriToday = (today && today.ok && today.repas) ? today.repas : [];
-    if(!_nutriRepas) _nutriRepas = (conf.repas && conf.repas[0]) || 'Repas';
+    const choix = nutriLoadPlanChoice();
+    const nbPlans = (conf.plans || []).length;
+    _nutriPlanIdx = (choix != null && choix >= 0 && choix < nbPlans) ? choix : 0;
+    if(!_nutriRepas){
+      const r = nutriPlan().repas[0];
+      _nutriRepas = r ? r.label : 'Repas';
+    }
     drawNutrition();
   }catch(err){
     console.warn('Chargement nutrition échoué:', err);
@@ -1252,9 +1300,40 @@ function drawNutrition(){
       + '<p>Coach Ron doit d\'abord déposer tes objectifs. Reviens un peu plus tard.</p></div>';
     return;
   }
-  const obj = conf.objectifs || {};
+  const plan = nutriPlan();
+  const obj = plan.objectifs || {};
   const used = nutriConsumed();
   const actifs = MACROS.filter(m => obj[m.k] > 0);
+
+  // Sélecteur du plan du jour — affiché seulement s'il y en a plusieurs.
+  const plansPills = (conf.plans || []).length > 1
+    ? '<div class="ci-card"><div class="ci-label">📅 Ton plan aujourd\'hui</div><div class="ci-pills">'
+      + conf.plans.map((p, i) =>
+          '<button type="button" class="ci-pill'+(i === _nutriPlanIdx ? ' on' : '')+'" onclick="nutriPickPlan('+i+')">'
+          + esc(p.nom) + '</button>').join('')
+      + '</div></div>'
+    : '';
+
+  // Ligne de vérification demandée par Ron : le total est RECALCULÉ depuis les
+  // macros, jamais recopié — c'est ce qui fait apparaître un écart si les
+  // chiffres saisis dans le .md ne collent pas entre eux.
+  const verif = (obj.prot > 0 || obj.gluc > 0 || obj.lip > 0)
+    ? '<div class="nu-verif">Vérification : '
+      + obj.prot+'×4 + '+obj.gluc+'×4 + '+obj.lip+'×9 = '
+      + (obj.prot*4)+' + '+(obj.gluc*4)+' + '+(obj.lip*9)+' = '
+      + '<b>'+obj.kcal+' kcal</b> ✓</div>'
+    : '';
+
+  // Somme des cibles par repas : si elle ne retombe pas sur l'objectif du
+  // jour, on le dit plutôt que de laisser une incohérence silencieuse.
+  const sommeRepas = { prot:0, gluc:0, lip:0 };
+  plan.repas.forEach(r => { sommeRepas.prot += r.prot||0; sommeRepas.gluc += r.gluc||0; sommeRepas.lip += r.lip||0; });
+  const ecarts = MACROS.filter(m => m.k !== 'kcal' && obj[m.k] > 0 && Math.abs(sommeRepas[m.k] - obj[m.k]) > 0.5)
+    .map(m => m.label.toLowerCase()+' : '+sommeRepas[m.k]+' g répartis sur '+obj[m.k]+' g');
+  const alerte = ecarts.length
+    ? '<div class="nu-alerte">⚠️ Les cibles par repas ne totalisent pas l\'objectif du jour ('
+      + esc(ecarts.join(' · ')) + '). Signale-le à Coach Ron.</div>'
+    : '';
 
   // Décompte : ce qu'il reste, macro par macro.
   const jauges = actifs.map(m => {
@@ -1273,9 +1352,20 @@ function drawNutrition(){
       + '</div>';
   }).join('');
 
-  const repasPills = (conf.repas || []).map(r =>
-    '<button type="button" class="ci-pill'+(r === _nutriRepas ? ' on' : '')+'" onclick="nutriPickRepas(this,\''+r.replace(/'/g,"\\'")+'\')">'+esc(r)+'</button>'
+  const repasPills = plan.repas.map(r =>
+    '<button type="button" class="ci-pill'+(r.label === _nutriRepas ? ' on' : '')+'" onclick="nutriPickRepas(this,\''+r.label.replace(/'/g,"\\'")+'\')">'+esc(r.label)+'</button>'
   ).join('');
+
+  // Cible du repas sélectionné, affichée sous les champs macros comme repère
+  // de saisie — sans pré-remplir : le journal doit refléter ce qui a été
+  // réellement mangé, pas la consigne.
+  const repasSel = plan.repas.find(r => r.label === _nutriRepas);
+  const cibleRepas = (repasSel && (repasSel.prot || repasSel.gluc || repasSel.lip))
+    ? '<div class="nu-cible">Cible de ce repas : '
+      + MACROS.filter(m => m.k !== 'kcal' && repasSel[m.k] > 0)
+              .map(m => m.emoji+' '+repasSel[m.k]+' g').join(' · ')
+      + ' · 🔥 ' + repasSel.kcal + ' kcal</div>'
+    : '';
 
   const dejaPris = _nutriToday.map((r, i) => {
     const macros = MACROS.filter(m => Number(r[m.k]) > 0)
@@ -1295,8 +1385,24 @@ function drawNutrition(){
 
   $('#tabContent').innerHTML =
       (conf.notes ? '<div class="nu-notes">'+esc(conf.notes)+'</div>' : '')
+    + (plansPills ? '<div class="ci-section">'+plansPills+'</div>' : '')
+    + ((conf.scenarios && conf.scenarios.length)
+        ? '<div class="nu-scen">'
+          + '<button type="button" class="nu-scen-head" onclick="nutriToggleScen()">'
+          +   '🕐 Scénarios de timing <span>'+(_nutriScenOpen ? '▾' : '▸')+'</span></button>'
+          + (_nutriScenOpen
+              ? '<div class="nu-scen-body">'
+                + (conf.scenarioIntro ? '<p class="nu-scen-intro">'+esc(conf.scenarioIntro)+'</p>' : '')
+                + conf.scenarios.map(s =>
+                    '<div class="nu-scen-item"><b>'+esc(s.titre)+'</b><p>'+esc(s.texte)+'</p></div>').join('')
+                + '</div>'
+              : '')
+          + '</div>'
+        : '')
     + '<div class="ci-section">'
     +   '<div class="ci-section-title">Il te reste aujourd\'hui</div>'
+    +   (plan.nom ? '<div class="ci-section-sub">'+esc(plan.nom)+'</div>' : '')
+    +   verif + alerte
     +   '<div class="nu-macros">'+jauges+'</div>'
     + '</div>'
 
@@ -1321,6 +1427,8 @@ function drawNutrition(){
             + '<input type="number" inputmode="decimal" min="0" step="1" id="nu_'+m.k+'" placeholder="0" oninput="nutriMacroInput()">'
             + '<i>'+m.unit+'</i></label>').join('')
     +   '</div>'
+    +   '</div>'
+    +   cibleRepas
     +   (obj.kcal > 0 ? '<div class="nu-hint">Calories calculées automatiquement : 4 kcal/g pour les protéines et les glucides, 9 kcal/g pour les lipides.</div>' : '')
     +   '</div>'
     +   '<button type="button" class="ci-submit" id="nuSubmit" onclick="nutriSendMeal()">📲 '
@@ -1330,6 +1438,21 @@ function drawNutrition(){
     + (dejaPris
         ? '<div class="ci-section"><div class="ci-section-title">Déjà pris aujourd\'hui</div>'+dejaPris+'</div>'
         : '');
+}
+
+function nutriPickPlan(i){
+  _nutriPlanIdx = i;
+  nutriSavePlanChoice(i);
+  // Le créneau sélectionné appartenait à l'autre plan : on repart sur le
+  // premier repas du nouveau plan plutôt que de garder un libellé orphelin.
+  const p = nutriPlan();
+  if(!p.repas.some(r => r.label === _nutriRepas)) _nutriRepas = p.repas[0] ? p.repas[0].label : 'Repas';
+  drawNutrition();
+}
+
+function nutriToggleScen(){
+  _nutriScenOpen = !_nutriScenOpen;
+  drawNutrition();
 }
 
 function nutriPickRepas(btn, val){
@@ -1401,6 +1524,7 @@ function fileToBase64(file){
 function nutriBuildMsg(meal, estModif){
   let m = '🍽️ *' + (estModif ? 'Repas modifié' : 'Repas') + '* — '
         + (S.user ? S.user.name : '') + ' — ' + headerDateStr() + '\n\n';
+  if(meal.plan) m += '_' + waSafe(meal.plan) + '_\n\n';
   m += '*' + waSafe(meal.repas) + (meal.heure ? ' · ' + waSafe(meal.heure) : '') + '*\n';
   if(meal.description) m += waSafe(meal.description) + '\n';
 
@@ -1412,7 +1536,7 @@ function nutriBuildMsg(meal, estModif){
 
   // Décompte après ce repas — l'info utile pour le coach comme pour
   // l'athlète, plus que les totaux bruts.
-  const obj = (_nutriConf && _nutriConf.objectifs) || {};
+  const obj = nutriPlan().objectifs || {};
   const used = nutriConsumed(estModif ? meal.mealId : null);
   const reste = MACROS.filter(x => obj[x.k] > 0).map(x => {
     const r = obj[x.k] - (used[x.k] + (Number(meal[x.k]) || 0));
@@ -1433,7 +1557,7 @@ function nutriPushLocal(meal){
     horodatage: new Date().toISOString(),
     repas: meal.repas, description: meal.description, heure: meal.heure || '',
     prot: meal.prot, gluc: meal.gluc, lip: meal.lip, kcal: meal.kcal,
-    photoUrl: meal.photoUrl || '', mealId: meal.mealId || ''
+    photoUrl: meal.photoUrl || '', mealId: meal.mealId || '', plan: meal.plan || ''
   };
   const i = _nutriToday.findIndex(r => r.mealId && r.mealId === meal.mealId);
   if(i >= 0){
@@ -1454,6 +1578,7 @@ async function nutriSendMeal(){
   const meal = {
     repas: _nutriRepas, description, photoUrl: '',
     heure: ($('#nuHeure') && $('#nuHeure').value) || nutriNowHHMM(),
+    plan: nutriPlan().nom || '',
     mealId: edition || (Date.now() + '_' + Math.random().toString(36).slice(2, 8))
   };
   MACROS.forEach(m => { const el = $('#nu_'+m.k); meal[m.k] = el ? (parseFloat(el.value) || 0) : 0; });
