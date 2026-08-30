@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Prog Indiv">
+<meta name="build" content="20260830-1140">
 <meta name="robots" content="noindex, nofollow">
 <title>EASTBOX · PROG INDIV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -346,6 +347,8 @@ input[type=range].ci-slider-input::-moz-range-thumb{
 .nu-legende i.ok{background:var(--green)}
 .nu-legende i.moyen{background:var(--orange)}
 .nu-legende i.loin{background:var(--red)}
+.ci-pill.nu-pill-hc{border-style:dashed}
+.ci-pill.nu-pill-hc.on{border-style:solid}
 .nu-item-photo{display:inline-block;margin-top:6px;font-size:11.5px;color:var(--orange)}
 .nu-item.editing{border-color:var(--orange);box-shadow:0 0 0 1px var(--orange) inset}
 .nu-item-edit{
@@ -364,6 +367,7 @@ input[type=range].ci-slider-input::-moz-range-thumb{
   color:var(--orange);font-size:11.5px;font-weight:700;flex:0 0 auto;
 }
 .nu-time{max-width:170px}
+.nu-build{text-align:center;font-size:10px;color:var(--muted);opacity:.6;padding:14px 0 24px;letter-spacing:.04em}
 .nu-verif{
   font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);
   background:var(--navy-2);border:1px solid var(--line);border-radius:10px;
@@ -431,6 +435,7 @@ input[type=range].ci-slider-input::-moz-range-thumb{
     </div>
     <div id="tabContent"></div>
   </main>
+  <div class="nu-build">version 20260830-1140</div>
   <div class="ci-toast" id="ciToast"></div>
 </div>
 
@@ -1231,6 +1236,11 @@ function nutriSavePlanChoice(i){
 }
 // Cible du repas portant ce libellé dans le plan actif, ou null si le plan
 // ne définit pas de cibles par repas (cas du fichier d'Angela).
+// Repas non prévu au plan : l'athlète a mangé hors cadre. Compté dans le
+// décompte du jour (c'est de la nourriture réellement prise), mais sans
+// cible — donc pas de pastilles colorées, il n'y a rien à comparer.
+const REPAS_HORS_CADRE = 'Repas hors cadre';
+
 function nutriCibleDe(label){
   const r = nutriPlan().repas.find(x => x.label === label);
   return (r && (r.prot || r.gluc || r.lip)) ? r : null;
@@ -1380,7 +1390,9 @@ function drawNutrition(){
 
   const repasPills = plan.repas.map(r =>
     '<button type="button" class="ci-pill'+(r.label === _nutriRepas ? ' on' : '')+'" onclick="nutriPickRepas(this,\''+r.label.replace(/'/g,"\\'")+'\')">'+esc(r.label)+'</button>'
-  ).join('');
+  ).join('')
+  + '<button type="button" class="ci-pill nu-pill-hc'+(_nutriRepas === REPAS_HORS_CADRE ? ' on' : '')
+  + '" onclick="nutriPickRepas(this,\''+REPAS_HORS_CADRE+'\')">'+REPAS_HORS_CADRE+'</button>';
 
   // Cible du repas sélectionné, affichée juste sous le choix du repas (Ron,
   // 2026-08-30) : l'athlète voit ce qu'elle vise au moment de choisir, avant
@@ -1485,7 +1497,9 @@ function nutriPickPlan(i){
   // Le créneau sélectionné appartenait à l'autre plan : on repart sur le
   // premier repas du nouveau plan plutôt que de garder un libellé orphelin.
   const p = nutriPlan();
-  if(!p.repas.some(r => r.label === _nutriRepas)) _nutriRepas = p.repas[0] ? p.repas[0].label : 'Repas';
+  if(_nutriRepas !== REPAS_HORS_CADRE && !p.repas.some(r => r.label === _nutriRepas)){
+    _nutriRepas = p.repas[0] ? p.repas[0].label : REPAS_HORS_CADRE;
+  }
   drawNutrition();
 }
 
@@ -1668,8 +1682,39 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pageshow', recheckOnReturn);
 
 /* ===========================================================================
+   VÉRIFICATION DE VERSION AU DÉMARRAGE
+   L'appli est ajoutée à l'écran d'accueil par les athlètes : iOS y sert une
+   copie en cache très longtemps. Sans ça, une athlète peut rester des jours
+   sur une ancienne version sans le moindre indice — constaté le 2026-08-30,
+   où des pastilles pourtant déployées n'apparaissaient pas sur mobile.
+   On demande donc les premiers octets du fichier en ligne (le marqueur
+   <meta name="build"> y est placé exprès, pour ne pas retélécharger les
+   270 Ko de la page à chaque ouverture) et on recharge si la version diffère.
+   =========================================================================== */
+const BUILD = '20260830-1140';
+
+async function checkVersion(){
+  try{
+    const r = await fetch(location.pathname + '?cb=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Range': 'bytes=0-2047' }
+    });
+    if(!r.ok && r.status !== 206) return;
+    const m = (await r.text()).match(/name="build" content="([^"]+)"/);
+    if(!m || m[1] === BUILD) return;
+
+    // Une seule tentative par version : si le rechargement ne suffit pas
+    // (cache particulièrement tenace), on s'arrête au lieu de boucler.
+    const cle = 'eb_maj_' + m[1];
+    try{ if(sessionStorage.getItem(cle)) return; sessionStorage.setItem(cle, '1'); }catch(_){}
+    location.replace(location.pathname + '?v=' + encodeURIComponent(m[1]));
+  }catch(_){ /* hors ligne ou requête refusée : on garde la version en place */ }
+}
+
+/* ===========================================================================
    DÉMARRAGE
    =========================================================================== */
+checkVersion();
 if(restore()) start();
 </script>
 </body>

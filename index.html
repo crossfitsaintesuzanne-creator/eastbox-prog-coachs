@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<meta name="build" content="20260830-1152">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1485,6 +1486,46 @@ function fmtDate(ms){
       { day:'2-digit', month:'short', year:'numeric', timeZone:'Indian/Reunion' });
   }catch(_){ return ''; }
 }
+
+/* ===========================================================================
+   VÉRIFICATION DE VERSION
+   Compare la version en cours d'exécution à celle publiée en ligne et recharge
+   si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
+   "build" est en tête de <head>) : inutile de retélécharger toute la page.
+   =========================================================================== */
+const BUILD = '20260830-1152';
+
+async function checkVersion(){
+  try{
+    const r = await fetch(location.pathname + '?cb=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Range': 'bytes=0-2047' }
+    });
+    if(!r.ok && r.status !== 206) return;
+    const m = (await r.text()).match(/name="build" content="([^"]+)"/);
+    if(!m || m[1] === BUILD) return;
+    // Garde-fou : une seule tentative de rechargement par version. Si le cache
+    // résiste malgré tout, on reste sur la version en place plutôt que de
+    // recharger en boucle.
+    const cle = 'eb_maj_' + m[1];
+    try{
+      if(sessionStorage.getItem(cle)) return;
+      sessionStorage.setItem(cle, '1');
+    }catch(_){}
+    location.replace(location.pathname + '?v=' + encodeURIComponent(m[1]));
+  }catch(_){ /* réseau indisponible : on garde la version en place */ }
+}
+
+function afficheVersion(){
+  try{
+    document.body.insertAdjacentHTML('beforeend',
+      '<div style="position:fixed;right:8px;bottom:6px;z-index:9999;pointer-events:none;'
+      + 'font:400 10px/1 system-ui,-apple-system,sans-serif;color:#8ea0bd;opacity:.45">v'
+      + BUILD + '</div>');
+  }catch(_){}
+}
+afficheVersion();
+checkVersion();
 
 /* ===========================================================================
    DÉMARRAGE
