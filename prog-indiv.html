@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Prog Indiv">
-<meta name="build" content="20260830-1217">
+<meta name="build" content="20260830-1318">
 <meta name="robots" content="noindex, nofollow">
 <title>EASTBOX · PROG INDIV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -435,7 +435,7 @@ input[type=range].ci-slider-input::-moz-range-thumb{
     </div>
     <div id="tabContent"></div>
   </main>
-  <div class="nu-build">version 20260830-1217</div>
+  <div class="nu-build">version 20260830-1318</div>
   <div class="ci-toast" id="ciToast"></div>
 </div>
 
@@ -1056,6 +1056,25 @@ function pickSeance(idx){
 // comportement, pour mémoire : un seul message WhatsApp était
 // composé avec uniquement les exercices remplis (nom, détails du plan,
 // commentaire) et enregistré dans le Sheet que Ron consulte.
+// Certains blocs ne sont pas des exercices : « Consignes du jour » est une
+// note du coach, pas quelque chose qu'on exécute — lui accoler un champ
+// « ton ressenti » n'avait pas de sens (Ron, 2026-08-30). Ils restent
+// affichés, simplement sans espace de saisie.
+// Comparaison par DÉBUT de titre, sans accents ni casse : « Compréhension
+// C2B (allégé) » est ainsi couvert par la même entrée que « Compréhension
+// C2B ». Pour en ajouter un autre : une ligne de plus, rien d'autre.
+const BLOCS_SANS_RESSENTI = [
+  'consignes du jour',
+  'rappel c2b',           // rappel technique, rien à exécuter
+  'comprehension c2b'     // idem — et couvre « ... (allégé) »
+];
+function blocSansRessenti(titre){
+  const t = String(titre || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // sans accents
+    .toLowerCase().trim();
+  return BLOCS_SANS_RESSENTI.some(x => t.indexOf(x) === 0);
+}
+
 function renderSeanceDoc(idx){
   const s = _planSeances[idx];
   const box = $('#planSeanceDoc');
@@ -1063,12 +1082,14 @@ function renderSeanceDoc(idx){
   box.innerHTML =
       '<div class="plan-doc-title">'+esc(s.mainTitle)+'</div>'
     + s.blocs.map((b, bIdx) => {
+        const doc = '<div class="doc"><h3>'+esc(b.title)+'</h3>'+renderBlocLines(b.raw)+'</div>';
+        if(blocSansRessenti(b.title)) return doc;
         const prior = _planLogs[s.title + '|' + b.title];
         const badge = prior
           ? '<div class="plan-log-badge">✓ Déjà enregistré à '+esc(fmtHHMM(prior.horodatage))+' · modification possible</div>'
           : '';
         const priorComment = prior ? esc(prior.comment || '') : '';
-        return '<div class="doc"><h3>'+esc(b.title)+'</h3>'+renderBlocLines(b.raw)+'</div>'
+        return doc
           + '<div class="plan-log">'
           + badge
           + '<textarea class="ci-textarea" id="planLogComment_'+bIdx+'" placeholder="Ton ressenti sur cet exercice (optionnel)...">'+priorComment+'</textarea>'
@@ -1130,7 +1151,9 @@ async function submitAllTrainingLogs(){
 
   const entries = [];
   s.blocs.forEach((b, bIdx) => {
-    const comment = $('#planLogComment_'+bIdx).value.trim();
+    const champ = $('#planLogComment_'+bIdx);   // absent sur les blocs non-exercice
+    if(!champ) return;
+    const comment = champ.value.trim();
     if(comment) entries.push({ bIdx, bloc:b, comment });
   });
   if(!entries.length){ showToast('Ajoute au moins un commentaire avant d\'enregistrer', true); return; }
@@ -1661,7 +1684,7 @@ window.addEventListener('pageshow', recheckOnReturn);
    <meta name="build"> y est placé exprès, pour ne pas retélécharger les
    270 Ko de la page à chaque ouverture) et on recharge si la version diffère.
    =========================================================================== */
-const BUILD = '20260830-1217';
+const BUILD = '20260830-1318';
 
 async function checkVersion(){
   try{
