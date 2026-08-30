@@ -1217,6 +1217,22 @@ function nutriLoadPlanChoice(){
 function nutriSavePlanChoice(i){
   try{ localStorage.setItem(nutriPlanKey(), String(i)); }catch(_){}
 }
+// Cible du repas portant ce libellé dans le plan actif, ou null si le plan
+// ne définit pas de cibles par repas (cas du fichier d'Angela).
+function nutriCibleDe(label){
+  const r = nutriPlan().repas.find(x => x.label === label);
+  return (r && (r.prot || r.gluc || r.lip)) ? r : null;
+}
+
+// Texte de la cible d'un repas (vide si le plan n'en définit pas).
+function nutriCibleTexte(label){
+  const c = nutriCibleDe(label);
+  if(!c) return '';
+  return 'Cible de ce repas : '
+    + MACROS.filter(m => m.k !== 'kcal' && c[m.k] > 0).map(m => m.emoji+' '+c[m.k]+' g').join(' · ')
+    + ' · 🔥 ' + c.kcal + ' kcal';
+}
+
 function nutriPlan(){
   const p = _nutriConf && _nutriConf.plans;
   return (p && p[_nutriPlanIdx]) || { nom:'', objectifs:{}, repas:[] };
@@ -1354,16 +1370,12 @@ function drawNutrition(){
     '<button type="button" class="ci-pill'+(r.label === _nutriRepas ? ' on' : '')+'" onclick="nutriPickRepas(this,\''+r.label.replace(/'/g,"\\'")+'\')">'+esc(r.label)+'</button>'
   ).join('');
 
-  // Cible du repas sélectionné, affichée sous les champs macros comme repère
-  // de saisie — sans pré-remplir : le journal doit refléter ce qui a été
-  // réellement mangé, pas la consigne.
-  const repasSel = plan.repas.find(r => r.label === _nutriRepas);
-  const cibleRepas = (repasSel && (repasSel.prot || repasSel.gluc || repasSel.lip))
-    ? '<div class="nu-cible">Cible de ce repas : '
-      + MACROS.filter(m => m.k !== 'kcal' && repasSel[m.k] > 0)
-              .map(m => m.emoji+' '+repasSel[m.k]+' g').join(' · ')
-      + ' · 🔥 ' + repasSel.kcal + ' kcal</div>'
-    : '';
+  // Cible du repas sélectionné, affichée juste sous le choix du repas (Ron,
+  // 2026-08-30) : l'athlète voit ce qu'elle vise au moment de choisir, avant
+  // de saisir. Toujours sans pré-remplir les champs — le journal doit
+  // refléter ce qui a été réellement mangé, pas la consigne.
+  const cibleRepas = '<div class="nu-cible' + (nutriCibleTexte(_nutriRepas) ? '' : ' hide')
+                   + '" id="nuCible">' + nutriCibleTexte(_nutriRepas) + '</div>';
 
   const dejaPris = _nutriToday.map((r, i) => {
     const macros = MACROS.filter(m => Number(r[m.k]) > 0)
@@ -1408,7 +1420,8 @@ function drawNutrition(){
     +   '<div class="ci-section-title">'+(enEdition ? 'Modifier le repas' : 'Ajouter un repas')+'</div>'
     +   (enEdition ? '<div class="nu-editbar">Tu modifies un repas déjà envoyé.'
                    + '<button type="button" onclick="nutriCancelEdit()">Annuler</button></div>' : '')
-    +   '<div class="ci-card"><div class="ci-label">🍽️ Quel repas ?</div><div class="ci-pills">'+repasPills+'</div></div>'
+    +   '<div class="ci-card"><div class="ci-label">🍽️ Quel repas ?</div><div class="ci-pills">'+repasPills+'</div>'
+    +     cibleRepas + '</div>'
     +   '<div class="ci-card"><div class="ci-label">🕐 À quelle heure ?</div>'
     +     '<input type="time" class="ci-input nu-time" id="nuHeure" value="'+esc(heureVal)+'"></div>'
     +   '<div class="ci-card"><div class="ci-label">📝 Ce que tu as mangé</div>'
@@ -1425,7 +1438,6 @@ function drawNutrition(){
             + '<i>'+m.unit+'</i></label>').join('')
     +   '</div>'
     +   '</div>'
-    +   cibleRepas
     +   (obj.kcal > 0 ? '<div class="nu-hint">Calories calculées automatiquement : 4 kcal/g pour les protéines et les glucides, 9 kcal/g pour les lipides.</div>' : '')
     +   '</div>'
     +   '<button type="button" class="ci-submit" id="nuSubmit" onclick="nutriSendMeal()">📲 '
@@ -1456,6 +1468,14 @@ function nutriPickRepas(btn, val){
   btn.parentElement.querySelectorAll('.ci-pill').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
   _nutriRepas = val;
+  // Mise à jour ciblée : un drawNutrition() complet effacerait la description
+  // et les macros déjà tapées.
+  const el = $('#nuCible');
+  if(el){
+    const t = nutriCibleTexte(val);
+    el.textContent = t;
+    el.classList.toggle('hide', !t);
+  }
 }
 
 // Charge un repas déjà envoyé dans le formulaire pour correction.
@@ -1490,8 +1510,12 @@ function nutriBuildMsg(meal, estModif){
   m += '*' + waSafe(meal.repas) + (meal.heure ? ' · ' + waSafe(meal.heure) : '') + '*\n';
   if(meal.description) m += waSafe(meal.description) + '\n';
 
-  const lignes = MACROS.filter(x => meal[x.k] > 0)
-    .map(x => x.emoji + ' ' + x.label + ' : ' + Math.round(meal[x.k]) + ' ' + x.unit);
+  // Cible rappelée à côté du réalisé : c'est l'écart qui intéresse le coach,
+  // pas la valeur brute — les deux côte à côte évitent de la calculer de tête.
+  const cible = nutriCibleDe(meal.repas);
+  const lignes = MACROS.filter(x => meal[x.k] > 0).map(x =>
+    x.emoji + ' ' + x.label + ' : ' + Math.round(meal[x.k]) + ' ' + x.unit
+    + (cible && cible[x.k] > 0 ? ' _(cible ' + Math.round(cible[x.k]) + ' ' + x.unit + ')_' : ''));
   if(lignes.length) m += '\n' + lignes.join('\n') + '\n';
 
   if(meal.photoUrl) m += '\n📷 Photo : ' + meal.photoUrl + '\n';   // repas d'avant le retrait de l'upload
