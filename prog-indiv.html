@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Prog Indiv">
-<meta name="build" content="20260830-1140">
+<meta name="build" content="20260830-1217">
 <meta name="robots" content="noindex, nofollow">
 <title>EASTBOX · PROG INDIV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -255,7 +255,7 @@ input[type=range].ci-slider-input::-moz-range-thumb{
 .day{flex:0 0 auto;padding:9px 15px;border-radius:999px;background:var(--navy-2);border:1px solid var(--line);font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .day.on{background:var(--orange);color:#10192b;border-color:var(--orange)}
 /* ---------- État de chaque séance (Ron, 2026-08-28) ----------
-   vert   = ressenti déjà envoyé au coach pour cette séance
+   vert   = ressenti déjà enregistré pour cette séance
    orange = à faire (semaine en cours ou à venir)
    rouge  = semaine passée sans rien d'envoyé
    La couleur porte l'état, le remplissage porte la sélection : une pastille
@@ -435,7 +435,7 @@ input[type=range].ci-slider-input::-moz-range-thumb{
     </div>
     <div id="tabContent"></div>
   </main>
-  <div class="nu-build">version 20260830-1140</div>
+  <div class="nu-build">version 20260830-1217</div>
   <div class="ci-toast" id="ciToast"></div>
 </div>
 
@@ -1051,9 +1051,11 @@ function pickSeance(idx){
 // son contenu — mais UN SEUL bouton d'envoi tout en bas de la séance (Ron,
 // 2026-08-27). Au clic : chaque exercice rempli (commentaire et/ou vidéo)
 // est écrit dans le Sheet ENTRAINEMENT_LOGS (exercice + détails + commentaire
-// — pas la vidéo, elle part sur Drive) puis un seul message WhatsApp est
+// — pas la vidéo, elle part sur Drive). Plus de message WhatsApp depuis le
+// 2026-08-30 : le détail va au Sheet, Ron le lit dans son dashboard. Ancien
+// comportement, pour mémoire : un seul message WhatsApp était
 // composé avec uniquement les exercices remplis (nom, détails du plan,
-// commentaire, lien vidéo si présent) et envoyé au coach.
+// commentaire) et enregistré dans le Sheet que Ron consulte.
 function renderSeanceDoc(idx){
   const s = _planSeances[idx];
   const box = $('#planSeanceDoc');
@@ -1063,7 +1065,7 @@ function renderSeanceDoc(idx){
     + s.blocs.map((b, bIdx) => {
         const prior = _planLogs[s.title + '|' + b.title];
         const badge = prior
-          ? '<div class="plan-log-badge">✓ Déjà envoyé à '+esc(fmtHHMM(prior.horodatage))+' · modification possible</div>'
+          ? '<div class="plan-log-badge">✓ Déjà enregistré à '+esc(fmtHHMM(prior.horodatage))+' · modification possible</div>'
           : '';
         const priorComment = prior ? esc(prior.comment || '') : '';
         return '<div class="doc"><h3>'+esc(b.title)+'</h3>'+renderBlocLines(b.raw)+'</div>'
@@ -1072,7 +1074,7 @@ function renderSeanceDoc(idx){
           + '<textarea class="ci-textarea" id="planLogComment_'+bIdx+'" placeholder="Ton ressenti sur cet exercice (optionnel)...">'+priorComment+'</textarea>'
           + '</div>';
       }).join('')
-    + '<button type="button" class="plan-log-submit" id="planLogSubmitBtn" onclick="submitAllTrainingLogs()">📲 ENVOYER À COACH RON</button>';
+    + '<button type="button" class="plan-log-submit" id="planLogSubmitBtn" onclick="submitAllTrainingLogs()">💾 ENREGISTRER MA SÉANCE</button>';
 }
 function fmtHHMM(iso){
   const d = new Date(iso);
@@ -1094,18 +1096,9 @@ function inlineMd(s){
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>');
 }
-// Version texte brut (pas HTML) des lignes d'un bloc — pour le Sheet et le
-// message WhatsApp : liens gardés en clair "texte (url)" plutôt qu'en HTML.
-// Assainit un texte destiné à un message WhatsApp : remplace les tirets
-// longs (— U+2014, – U+2013) par un tiret simple. Ils s'affichent bien chez
-// Ron, mais ils font partie des rares caractères non-ASCII venant des .md de
-// plan, et le tiret simple est visuellement équivalent — autant supprimer la
-// variable (2026-08-27, voir le commentaire dans submitAllTrainingLogs).
-function waSafe(s){
-  return String(s == null ? '' : s).replace(/[–—]/g, '-');
-}
-// Sert au message WhatsApp ET au Sheet (même texte pour les deux) — liens
-// hypertexte retirés (Ron, 2026-08-27) : juste le texte du lien, pas l'URL.
+// Version texte brut (pas HTML) des lignes d'un bloc, écrite telle quelle
+// dans la colonne « détails » du Sheet. Liens hypertexte retirés (Ron,
+// 2026-08-27) : on garde le texte du lien, pas l'URL.
 function blocDetailsText(lines){
   return lines.map(l => l.trim()).filter(Boolean).map(l => {
     let t = l.startsWith('- ') ? l.slice(2) : l;
@@ -1119,18 +1112,20 @@ function blocDetailsText(lines){
 // serveur correspondant, actionIndivTrainingLogChunk, reste en place pour
 // pouvoir le réactiver sans tout refaire).
 //
-// La navigation vers WhatsApp doit rester DANS la foulée du clic : c'était la
-// cause racine du bug des emoji en losange (trouvée le 2026-08-28 avec la page
-// de test test-whatsapp.html, dont les 8 variantes passaient toutes, y compris
-// le message exact qui échouait dans l'appli). iOS Safari borne dans le temps
-// le « geste utilisateur » ; au-delà, la navigation emprunte un chemin qui
-// abîme les caractères multi-octets, en laissant le texte intact. La séance 1
-// attendait 6 appels serveur séquentiels (~3 s) et cassait ; les séances 2 et
-// 3 n'en attendaient que 2 et passaient — ce qui faisait croire à tort à un
-// problème de longueur, les deux variables étant confondues.
-// D'où : écritures Sheet en fire-and-forget (keepalive), navigation immédiate,
-// exactement la recette du Suivi Quotidien, qui n'a jamais eu le problème.
-function submitAllTrainingLogs(){
+// Plus d'envoi WhatsApp depuis le 2026-08-30 (Ron) : avec 15 athlètes et
+// 3 séances par semaine, le détail exercice par exercice noyait le résumé
+// quotidien, le seul message qu'il veut vraiment lire. Tout part désormais
+// dans le Sheet, qu'il consulte via son dashboard.
+//
+// Conséquence heureuse : il n'y a plus de navigation à déclencher dans la
+// foulée du clic. On peut donc enfin ATTENDRE la réponse du serveur et dire
+// à l'athlète si l'enregistrement a réussi. Avant, la page partait sur
+// WhatsApp avant même que la requête n'aboutisse — un échec d'écriture
+// passait complètement inaperçu, l'athlète croyait avoir envoyé. Le détour
+// « fire-and-forget + navigation immédiate » n'existait que pour préserver
+// les emoji sur iOS (bug des losanges, 2026-08-28) : sans navigation, cette
+// contrainte tombe.
+async function submitAllTrainingLogs(){
   const s = _planSeances[_planActiveIdx];
 
   const entries = [];
@@ -1138,42 +1133,42 @@ function submitAllTrainingLogs(){
     const comment = $('#planLogComment_'+bIdx).value.trim();
     if(comment) entries.push({ bIdx, bloc:b, comment });
   });
-  if(!entries.length){ showToast('Ajoute au moins un commentaire avant d\'envoyer', true); return; }
+  if(!entries.length){ showToast('Ajoute au moins un commentaire avant d\'enregistrer', true); return; }
 
-  entries.forEach(e => {
-    const details = blocDetailsText(e.bloc.raw);
-    try{
-      fetch(API, {
-        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({
-          action:'indivTrainingLog', token:S.token, week:_planActiveWeek, year:_planActiveYear,
-          seance:s.title, exercice:e.bloc.title, details, comment:e.comment, hasVideo:false
-        }),
-        keepalive:true
-      }).catch(() => {});
-    }catch(_){}
-  });
-
-  const msg = buildTrainingMsg(s, entries);
-  entries.forEach(e => { $('#planLogComment_'+e.bIdx).value = ''; });
-  window.location.href = waUrl(msg);
+  const btn = $('#planLogSubmitBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Enregistrement…'; }
+  try{
+    // En série et non en parallèle : côté Apps Script chaque exercice est un
+    // appendRow dans le même Sheet, et des écritures simultanées peuvent se
+    // marcher dessus.
+    for(const e of entries){
+      const res = await api({
+        action:'indivTrainingLog', token:S.token,
+        week:_planActiveWeek, year:_planActiveYear, seance:s.title,
+        exercice:e.bloc.title, details:blocDetailsText(e.bloc.raw),
+        comment:e.comment, hasVideo:false
+      });
+      if(!res.ok) throw new Error(res.error || 'Enregistrement refusé');
+    }
+    // Mise à jour locale plutôt que loadPlan() : recharger le plan remettrait
+    // _planActiveIdx à 0 et renverrait l'athlète sur la séance 1, alors
+    // qu'elle vient d'en valider une autre.
+    entries.forEach(e => {
+      _planLogs[s.title + '|' + e.bloc.title] = {
+        seance:s.title, exercice:e.bloc.title, comment:e.comment,
+        horodatage: new Date().toISOString()   // sinon le badge affiche NaN:NaN
+      };
+    });
+    pickSeance(_planActiveIdx);   // redessine : bandeau « déjà rempli », champs vidés
+    const onglet = document.querySelectorAll('#planTabs .day')[_planActiveIdx];
+    if(onglet) onglet.className = 'day st-done on';   // pastille au vert
+    showToast('Séance enregistrée — Coach Ron la retrouve dans son suivi');
+  }catch(err){
+    showToast('Échec de l\'enregistrement : ' + (err.message || 'réessaie'), true);
+    if(btn){ btn.disabled = false; btn.textContent = '💾 ENREGISTRER MA SÉANCE'; }
+  }
 }
 
-// Emoji : n'utiliser QUE ceux vus s'afficher correctement sur l'iPhone de
-// Ron (📋 U+1F4CB et 🔥 U+1F525, constatés sur ses captures).
-function buildTrainingMsg(s, results){
-  let out = '📋 *Log entraînement* — ' + (S.user ? S.user.name : '') + ' — ' + waSafe(s.title) + '\n\n';
-  results.forEach(r => {
-    out += '*' + waSafe(r.bloc.title) + '*\n';
-    out += waSafe(blocDetailsText(r.bloc.raw)) + '\n';
-    if(r.comment) out += '🔥 _Ressenti :_ ' + waSafe(r.comment) + '\n';
-    out += '\n';
-  });
-  return out;
-}
-function waUrl(txt){
-  return 'https://wa.me/' + COACH_WHATSAPP + '?text=' + encodeURIComponent(txt);
-}
 
 /* ===========================================================================
    SUIVI NUTRITION (2026-08-28) — objectifs du jour lus dans un .md écrit par
@@ -1259,7 +1254,7 @@ function nutriPlan(){
   const p = _nutriConf && _nutriConf.plans;
   return (p && p[_nutriPlanIdx]) || { nom:'', objectifs:{}, repas:[] };
 }
-let _nutriToday = [];      // repas déjà envoyés aujourd'hui
+let _nutriToday = [];      // repas déjà enregistrés aujourd'hui
 let _nutriRepas = null;    // créneau sélectionné
 let _nutriEditId = null;   // mealId en cours de modification (null = nouveau repas)
 
@@ -1455,7 +1450,7 @@ function drawNutrition(){
 
     + '<div class="ci-section">'
     +   '<div class="ci-section-title">'+(enEdition ? 'Modifier le repas' : 'Ajouter un repas')+'</div>'
-    +   (enEdition ? '<div class="nu-editbar">Tu modifies un repas déjà envoyé.'
+    +   (enEdition ? '<div class="nu-editbar">Tu modifies un repas déjà enregistré.'
                    + '<button type="button" onclick="nutriCancelEdit()">Annuler</button></div>' : '')
     +   '<div class="ci-card"><div class="ci-label">🍽️ Quel repas ?</div><div class="ci-pills">'+repasPills+'</div>'
     +     cibleRepas + '</div>'
@@ -1463,7 +1458,7 @@ function drawNutrition(){
     +     '<input type="time" class="ci-input nu-time" id="nuHeure" value="'+esc(heureVal)+'"></div>'
     +   '<div class="ci-card"><div class="ci-label">📝 Ce que tu as mangé</div>'
     +     '<textarea class="ci-textarea" id="nuDesc" placeholder="ex. 150g poulet, riz complet, brocolis..."></textarea></div>'
-    +   '<div class="nu-hint nu-hint-photo">📷 La photo de ton repas s\'envoie directement dans WhatsApp, juste après ce message.</div>'
+    +   '<div class="nu-hint nu-hint-photo">📷 Après avoir enregistré, envoie la photo de ce repas à Coach Ron sur WhatsApp, en précisant de quel repas il s\'agit.</div>'
     +   '<div class="ci-card"><div class="ci-label">⚖️ Macros de ce repas</div><div class="nu-inputs">'
     +     actifs.map(m => m.k === 'kcal'
           // Les calories ne se saisissent pas : elles découlent des macros.
@@ -1477,8 +1472,8 @@ function drawNutrition(){
     +   '</div>'
     +   (obj.kcal > 0 ? '<div class="nu-hint">Calories calculées automatiquement : 4 kcal/g pour les protéines et les glucides, 9 kcal/g pour les lipides.</div>' : '')
     +   '</div>'
-    +   '<button type="button" class="ci-submit" id="nuSubmit" onclick="nutriSendMeal()">📲 '
-    +     (enEdition ? 'Enregistrer la modification' : 'Envoyer ce repas') + '</button>'
+    +   '<button type="button" class="ci-submit" id="nuSubmit" onclick="nutriSendMeal()">💾 '
+    +     (enEdition ? 'Enregistrer la modification' : 'Enregistrer ce repas') + '</button>'
     + '</div>'
 
     + (dejaPris
@@ -1545,43 +1540,6 @@ function nutriCancelEdit(){
 }
 
 
-// À composer AVANT d'ajouter le repas à _nutriToday : le bloc « reste »
-// ajoute lui-même le repas en cours au cumul déjà enregistré.
-function nutriBuildMsg(meal, estModif){
-  let m = '🍽️ *' + (estModif ? 'Repas modifié' : 'Repas') + '* — '
-        + (S.user ? S.user.name : '') + ' — ' + headerDateStr() + '\n\n';
-  if(meal.plan) m += '_' + waSafe(meal.plan) + '_\n\n';
-  m += '*' + waSafe(meal.repas) + (meal.heure ? ' · ' + waSafe(meal.heure) : '') + '*\n';
-  if(meal.description) m += waSafe(meal.description) + '\n';
-
-  // Cible rappelée à côté du réalisé : c'est l'écart qui intéresse le coach,
-  // pas la valeur brute — les deux côte à côte évitent de la calculer de tête.
-  const cible = nutriCibleDe(meal.repas);
-  const lignes = MACROS.filter(x => meal[x.k] > 0).map(x =>
-    x.emoji + ' ' + x.label + ' : ' + Math.round(meal[x.k]) + ' ' + x.unit
-    + (cible && cible[x.k] > 0 ? ' _(cible ' + Math.round(cible[x.k]) + ' ' + x.unit + ')_' : ''));
-  if(lignes.length) m += '\n' + lignes.join('\n') + '\n';
-
-  if(meal.photoUrl) m += '\n📷 Photo : ' + meal.photoUrl + '\n';   // repas d'avant le retrait de l'upload
-
-  // Décompte après ce repas — l'info utile pour le coach comme pour
-  // l'athlète, plus que les totaux bruts.
-  const obj = nutriPlan().objectifs || {};
-  const used = nutriConsumed(estModif ? meal.mealId : null);
-  const reste = MACROS.filter(x => obj[x.k] > 0).map(x => {
-    const r = obj[x.k] - (used[x.k] + (Number(meal[x.k]) || 0));
-    return x.emoji + ' ' + x.label + ' : '
-         + (r < 0 ? '+' + Math.abs(Math.round(r)) + ' ' + x.unit + ' de trop'
-                  : Math.round(r) + ' ' + x.unit);
-  });
-  if(reste.length) m += '\n🎯 *Reste aujourd\'hui*\n' + reste.join('\n') + '\n';
-  // Rappel placé ici à dessein : l'athlète le lit dans WhatsApp, message
-  // prêt à partir, appareil photo à portée — pas dans le formulaire, où elle
-  // l'aurait oublié le temps d'arriver jusqu'ici.
-  m += '\n📷 _Envoie la photo de ce repas juste après ce message._';
-  return m;
-}
-
 // Répercute le repas dans le cumul local et redessine : le décompte est à
 // jour et le formulaire vidé immédiatement, sans attendre un rechargement.
 // En modification, on REMPLACE l'entrée existante — l'ajouter ferait compter
@@ -1606,11 +1564,16 @@ function nutriPushLocal(meal){
 }
 
 // Envoi d'un repas : plus d'upload de photo depuis l'appli (Ron, 2026-08-30 —
-// les athlètes envoient la photo directement dans WhatsApp juste après). Il
-// ne reste donc qu'un seul chemin : écriture en fire-and-forget puis
-// navigation immédiate, indispensable pour que les emoji arrivent intacts
-// sur iOS (voir submitAllTrainingLogs).
-function nutriSendMeal(){
+// les athlètes envoient la photo directement dans WhatsApp), et plus de
+// message WhatsApp non plus depuis le 2026-08-30 : 3 repas par jour et par
+// athlète auraient noyé le résumé quotidien dans le fil. Le repas part
+// uniquement dans le Sheet, que Ron consulte via son dashboard.
+//
+// Sans navigation à déclencher, on attend la réponse du serveur : l'athlète
+// sait si son repas est vraiment enregistré. C'est important ici plus
+// qu'ailleurs, puisque le décompte des macros du jour n'a de sens que si
+// tous les repas ont bien été écrits.
+async function nutriSendMeal(){
   const description = $('#nuDesc').value.trim();
   const edition = _nutriEditId;   // figé ici : nutriPushLocal le remet à null
   const meal = {
@@ -1629,17 +1592,21 @@ function nutriSendMeal(){
     return;
   }
   const action = edition ? 'indivNutritionMealUpdate' : 'indivNutritionMeal';
-
+  const btn = $('#nuSubmit');
+  const libelle = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Enregistrement…'; }
   try{
-    fetch(API, {
-      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify(Object.assign({ action, token:S.token }, meal)),
-      keepalive:true
-    }).catch(() => {});
-  }catch(_){}
-  const url = waUrl(nutriBuildMsg(meal, edition));
-  nutriPushLocal(meal);   // décompte à jour + formulaire vidé avant de partir
-  window.location.href = url;
+    const res = await api(Object.assign({ action, token:S.token }, meal));
+    if(!res.ok) throw new Error(res.error || 'Enregistrement refusé');
+    // Redessine l'onglet : décompte à jour, formulaire vidé, bouton reconstruit.
+    nutriPushLocal(meal);
+    showToast(edition ? 'Repas modifié' : 'Repas enregistré');
+  }catch(err){
+    // On ne touche pas au décompte : mieux vaut un repas visiblement manquant
+    // qu'un total faux qui ferait manger à côté toute la journée.
+    showToast('Échec de l\'enregistrement : ' + (err.message || 'réessaie'), true);
+    if(btn){ btn.disabled = false; btn.textContent = libelle; }
+  }
 }
 
 function esc(s){
@@ -1665,14 +1632,17 @@ function recheckOnReturn(){
   if(S.tab === 'quotidien'){
     checkTodayBilan().then(() => { if(S.tab === 'quotidien') renderQuotidien(); });
   } else if(S.tab === 'programme'){
-    // Même raison que pour le bilan : l'onglet n'est jamais rechargé au
-    // retour de WhatsApp. Sans ça, la pastille de la séance qu'on vient
-    // d'envoyer resterait orange jusqu'au prochain chargement complet.
+    // L'enregistrement d'une séance met désormais la pastille au vert sans
+    // quitter la page (plus d'aller-retour WhatsApp depuis le 2026-08-30).
+    // On garde quand même ce rafraîchissement : l'athlète peut avoir saisi
+    // sa séance depuis un autre appareil, ou Ron avoir déposé un nouveau
+    // plan pendant que l'onglet était ouvert.
     loadPlan();
   } else if(S.tab === 'nutrition'){
     // Idem : recharge les repas du jour depuis le serveur pour repartir sur
-    // des chiffres certains (le cumul local ajouté à l'envoi n'est qu'une
-    // avance d'affichage), et vide le formulaire pour le repas suivant.
+    // des chiffres certains (le cumul local ajouté à l'enregistrement n'est
+    // qu'une avance d'affichage — un repas saisi sur un autre appareil, lui,
+    // ne s'y trouve pas).
     renderNutrition();
   }
 }
@@ -1691,7 +1661,7 @@ window.addEventListener('pageshow', recheckOnReturn);
    <meta name="build"> y est placé exprès, pour ne pas retélécharger les
    270 Ko de la page à chaque ouverture) et on recharge si la version diffère.
    =========================================================================== */
-const BUILD = '20260830-1140';
+const BUILD = '20260830-1217';
 
 async function checkVersion(){
   try{
