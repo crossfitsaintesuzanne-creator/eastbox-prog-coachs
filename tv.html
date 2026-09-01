@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260901-0830">
+<meta name="build" content="20260901-1141">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -273,7 +273,17 @@ async function refreshTV(){
     $('#tv').innerHTML = '<div class="tv-screen"><div class="tv-empty">⚠️ '+esc(err.message)+'</div></div>';
     return;
   }
-  S.tvCards = await computeTodayCards();
+  // Le rendu doit être protégé lui aussi : avant, une exception ici (fichier
+  // .md inattendu, discipline mal formée…) rejetait la promesse sans jamais
+  // remplacer le spinner. L'écran de la salle tournait dans le vide sans rien
+  // dire. Un écran muet est le pire cas : maintenant il affiche ce qui cloche.
+  try{
+    S.tvCards = await computeTodayCards();
+  }catch(err){
+    $('#tv').innerHTML = '<div class="tv-screen"><div class="tv-empty">⚠️ Affichage impossible<br>'
+                       + '<span style="font-size:.6em">'+esc(String(err && err.message || err))+'</span></div></div>';
+    return;
+  }
   if(S.tvIdx >= S.tvCards.length) S.tvIdx = 0;
   renderSlide();
   clearInterval(S.rotateInterval);
@@ -320,7 +330,11 @@ async function computeTodayCards(){
   for(const d of discs){
     const list = S.items.filter(i => i.discipline === d.key);
     if(!list.length) continue;
-    const card = await loadTodayCard(d, pickForWeek(list), now);
+    // Une discipline dont le fichier est illisible ne doit pas faire tomber
+    // les autres : on la saute, l'écran affiche ce qui reste.
+    let card = null;
+    try{ card = await loadTodayCard(d, pickForWeek(list), now); }
+    catch(e){ console.warn('Discipline ignorée : ' + d.key, e); }
     if(card) cards.push(card);
   }
   return cards;
@@ -813,7 +827,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260901-0830';
+const BUILD = '20260901-1141';
 
 async function checkVersion(){
   try{
@@ -851,7 +865,43 @@ setInterval(checkVersion, 30 * 60 * 1000);
 /* ===========================================================================
    DÉMARRAGE
    =========================================================================== */
-if(restore()) startTV();
+/** Connexion par clé d'URL (2026-08-30, demande de Ron) : l'écran ouvre
+ *  `tv.html?k=<clé>` et démarre seul, sans rien à taper. La clé n'est PAS
+ *  dans ce fichier (public sur GitHub Pages) : elle est dans le favori du
+ *  boîtier et validée côté serveur.
+ *
+ *  Ordre volontaire : une session déjà en place l'emporte sur la clé — inutile
+ *  de rejouer une connexion réseau à chaque démarrage, et l'écran continue de
+ *  fonctionner si le serveur est momentanément injoignable.
+ *
+ *  La clé est retirée de la barre d'adresse dès qu'elle a servi : elle ne
+ *  traîne pas à l'écran ni dans une capture, et le rechargement automatique de
+ *  version (checkVersion) repart de toute façon sur une URL propre. */
+async function demarrer(){
+  if(restore()){ startTV(); return; }
+
+  const cle = new URLSearchParams(location.search).get('k');
+  if(!cle) return;                       // pas de clé : formulaire de connexion
+
+  $('#tv').classList.remove('hide');
+  $('#tv').innerHTML = '<div class="tv-screen"><div class="spin" style="margin:auto"></div></div>';
+  try{
+    const res = await api({ action:'tvKey', key:cle });
+    if(!res.ok) throw new Error(res.error || 'Clé refusée');
+    S.token = res.token; S.user = res.user;
+    try{ localStorage.setItem('eb_tv', JSON.stringify({t:res.token,u:res.user})); }catch(_){}
+    history.replaceState(null, '', location.pathname);
+    startTV();
+  }catch(err){
+    // On retombe sur le formulaire plutôt que de laisser un écran mort.
+    $('#tv').classList.add('hide');
+    $('#login').classList.remove('hide');
+    const msg = $('#loginMsg');
+    msg.textContent = 'Connexion par clé impossible : ' + err.message;
+    msg.classList.remove('hide');
+  }
+}
+demarrer();
 </script>
 </body>
 </html>
