@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260830-1152">
+<meta name="build" content="20260901-0830">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -115,6 +115,28 @@ input:focus{border-color:var(--orange)}
 .wod-grid{display:grid;grid-template-columns:1fr;gap:1.2em;height:100%}
 .wod-grid.has-2col{grid-template-columns:1fr 1.15fr;gap:2.2em}
 .wod-col{min-width:0;overflow:hidden}
+
+/* ---------- Écran vertical (2026-08-30, demande de Ron) ----------
+   Le même fichier sert les deux orientations : un seul upload, une seule
+   session, une seule version. Rien à changer côté serveur.
+
+   ⚠️ Les 2 colonnes ne sont PAS simplement empilées. fitOne() mesure la
+   hauteur DISPONIBLE de chaque .wod-col — hauteur que la grille lui impose en
+   l'étirant. Avec des lignes en `auto`, cette hauteur suivrait le contenu :
+   le rapport contenu/disponible vaudrait toujours ~1 et la boucle
+   descendrait jusqu'à la taille minimale, texte minuscule sur un écran à
+   moitié vide. On transpose donc les colonnes en LIGNES proportionnelles
+   (mêmes poids 1 / 1.15) : chaque bloc reçoit un budget de hauteur défini,
+   et le moteur d'ajustement fonctionne exactement comme en paysage.
+
+   Un écran 1080×1920 offre plus de hauteur utile qu'un 1920×1080 : à contenu
+   égal, le texte est plus gros qu'en paysage, pas plus petit. */
+@media (orientation: portrait){
+  .tv-screen{padding:30px 34px 34px}
+  .wod-grid.has-2col{grid-template-columns:1fr;grid-template-rows:1fr 1.15fr;gap:1.6em}
+  .tv-head{gap:14px;margin-bottom:14px}
+  .tv-slide-top{margin-bottom:14px}
+}
 /* Volontairement pas étiré (contrairement à .wod-col, qui l'est par la
    grille) : sa hauteur naturelle sert de mesure « contenu réel » à fitOne(),
    voir le commentaire au-dessus de cette fonction. */
@@ -391,7 +413,19 @@ function renderSlide(){
     if(S.tvCards.length > 1) pickSlide((S.tvIdx + 1) % S.tvCards.length);
   });
 
-  document.fonts.ready.then(() => requestAnimationFrame(() => fitColumns()));
+  // requestAnimationFrame ne se déclenche PAS quand l'onglet est masqué (mise en
+  // veille de l'écran, autre onglet au premier plan, navigateur en arrière-plan).
+  // Sans filet, une séance rendue pendant ce temps resterait à la taille de police
+  // par défaut — texte minuscule sur le mur, et rien ne le rattraperait puisque
+  // l'ajustement n'a lieu qu'une fois par rendu. On garde rAF (le bon moment quand
+  // la page est visible) et on double d'un délai qui, lui, s'exécute toujours ;
+  // le premier arrivé fait le travail, l'autre ne fait rien.
+  document.fonts.ready.then(() => {
+    let fait = false;
+    const lancer = () => { if(fait) return; fait = true; fitColumns(); };
+    requestAnimationFrame(lancer);
+    setTimeout(lancer, 120);
+  });
 }
 
 /** Réduit le font-size du conteneur (tout est en em à l'intérieur, voir CSS
@@ -586,7 +620,11 @@ function renderWodBlock(sec, idx, total){
     const clean = stripLinks(italicOnly ? italicOnly[1] : (boldOnly ? boldOnly[1] : t));
 
     if(clean.length > 40) return;           // long texte explicatif : ignoré
-    body += '<div class="wlbl">'+esc(clean)+'</div>';
+    // inline() et non esc() : une ligne partiellement en gras/italique
+    // (« **AMRAP 5'** — 2-4-6-8-10… ») affichait ses astérisques en clair sur
+    // l'écran de la salle (repéré 2026-08-30). Les cas « toute la ligne en
+    // gras/italique » sont déjà dépouillés au-dessus, les autres sont rendus.
+    body += '<div class="wlbl">'+inline(clean)+'</div>';
   });
 
   return '<div class="wsec '+tagcls+'">'
@@ -775,7 +813,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260830-1152';
+const BUILD = '20260901-0830';
 
 async function checkVersion(){
   try{
