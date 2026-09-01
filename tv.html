@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260901-1542">
+<meta name="build" content="20260901-1633">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -827,7 +827,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260901-1542';
+const BUILD = '20260901-1633';
 
 async function checkVersion(){
   try{
@@ -858,6 +858,27 @@ async function checkVersion(){
  *  certains boîtiers TV, et tout en dépend. Affiché ici, une simple photo
  *  répond à la question. `dvh` est mesuré, pas supposé : on lit la hauteur
  *  qu'un élément en 100dvh obtient réellement. */
+/** Bandeau de diagnostic sous la carte de connexion. Il n'apparaît QUE quand
+ *  le formulaire est visible : à ce moment-là il n'y a rien d'autre à
+ *  regarder, et c'est exactement le moment où l'on a besoin de savoir
+ *  pourquoi la connexion automatique n'a pas eu lieu.
+ *  La clé n'est jamais affichée — seulement sa présence et sa longueur : une
+ *  photo de l'écran ne doit pas divulguer le secret. */
+function afficheDiagnosticConnexion(){
+  try{
+    const p = new URLSearchParams(location.search).get('k');
+    const h = new URLSearchParams(location.hash.replace(/^#/, '')).get('k');
+    const cle = p || h;
+    const etat = cle
+      ? 'clé détectée (' + cle.length + ' caractères, dans ' + (p ? "l'adresse" : 'le fragment') + ')'
+      : '⚠ AUCUNE CLÉ DANS L\'ADRESSE';
+    $('#login').insertAdjacentHTML('beforeend',
+      '<div style="margin-top:18px;text-align:center;font:600 22px/1.5 system-ui,-apple-system,sans-serif;'
+      + 'color:#8ea0bd;max-width:900px">'
+      + 'v' + BUILD + ' · ' + innerWidth + '×' + innerHeight + '<br>' + etat + '</div>');
+  }catch(_){}
+}
+
 function afficheVersion(){
   try{
     const sonde = document.createElement('div');
@@ -895,8 +916,13 @@ setInterval(checkVersion, 30 * 60 * 1000);
 async function demarrer(){
   if(restore()){ startTV(); return; }
 
-  const cle = new URLSearchParams(location.search).get('k');
-  if(!cle) return;                       // pas de clé : formulaire de connexion
+  // On accepte la clé dans la chaîne de requête (?k=) ET dans le fragment
+  // (#k=) : certains navigateurs de boîtiers d'affichage suppriment la
+  // première. Le fragment n'est jamais envoyé au serveur, donc c'est aussi
+  // la forme la plus discrète des deux.
+  const cle = new URLSearchParams(location.search).get('k')
+           || new URLSearchParams(location.hash.replace(/^#/, '')).get('k');
+  if(!cle){ afficheDiagnosticConnexion(); return; }   // pas de clé : formulaire
 
   $('#tv').classList.remove('hide');
   $('#tv').innerHTML = '<div class="tv-screen"><div class="spin" style="margin:auto"></div></div>';
@@ -914,6 +940,7 @@ async function demarrer(){
     const msg = $('#loginMsg');
     msg.textContent = 'Connexion par clé impossible : ' + err.message;
     msg.classList.remove('hide');
+    afficheDiagnosticConnexion();
   }
 }
 demarrer();
