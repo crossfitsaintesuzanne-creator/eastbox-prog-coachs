@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260901-1141">
+<meta name="build" content="20260901-1542">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -827,7 +827,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260901-1141';
+const BUILD = '20260901-1542';
 
 async function checkVersion(){
   try{
@@ -850,12 +850,27 @@ async function checkVersion(){
   }catch(_){ /* réseau indisponible : on garde la version en place */ }
 }
 
+/** Ligne de diagnostic en bas de l'écran : version + géométrie réelle.
+ *  La géométrie est là parce qu'un écran de salle ne peut rien raconter :
+ *  quand la mise en page est cassée (carte de connexion coincée en haut à
+ *  gauche, séance qui ne s'affiche pas), la question est toujours « quelle
+ *  hauteur le navigateur croit-il avoir ? ». `100dvh` est mal calculé sur
+ *  certains boîtiers TV, et tout en dépend. Affiché ici, une simple photo
+ *  répond à la question. `dvh` est mesuré, pas supposé : on lit la hauteur
+ *  qu'un élément en 100dvh obtient réellement. */
 function afficheVersion(){
   try{
+    const sonde = document.createElement('div');
+    sonde.style.cssText = 'position:absolute;top:-9999px;height:100dvh';
+    document.body.appendChild(sonde);
+    const dvh = sonde.clientHeight;
+    sonde.remove();
+    const geo = innerWidth + '×' + innerHeight + ' · dvh ' + dvh
+              + (dvh && Math.abs(dvh - innerHeight) <= 2 ? '' : ' ⚠');
     document.body.insertAdjacentHTML('beforeend',
       '<div style="position:fixed;right:8px;bottom:6px;z-index:9999;pointer-events:none;'
-      + 'font:400 10px/1 system-ui,-apple-system,sans-serif;color:#8ea0bd;opacity:.3">v'
-      + BUILD + '</div>');
+      + 'font:400 10px/1 system-ui,-apple-system,sans-serif;color:#8ea0bd;opacity:.45">v'
+      + BUILD + ' · ' + geo + '</div>');
   }catch(_){}
 }
 afficheVersion();
