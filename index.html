@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260902-1442">
+<meta name="build" content="20260902-2329">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -34,7 +34,7 @@ body{
   background:var(--navy); color:var(--ink);
   font-family:'Inter',system-ui,-apple-system,sans-serif;
   font-size:15px; line-height:1.55;
-  min-height:100dvh; overscroll-behavior-y:none;
+  min-height:100vh; min-height:100dvh; overscroll-behavior-y:none;
   padding-bottom:env(safe-area-inset-bottom);
 }
 h1,h2,h3,h4{margin:0;font-weight:700}
@@ -70,7 +70,7 @@ header{
 main{padding:var(--pad);max-width:840px;margin:0 auto}
 
 /* ---------- Écran connexion ---------- */
-#login{min-height:100dvh;display:grid;place-items:center;padding:24px}
+#login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px}
 .card-login{
   width:100%;max-width:380px;background:var(--navy-2);
   border:1px solid var(--line);border-radius:20px;padding:30px 24px;
@@ -117,6 +117,23 @@ input:focus{border-color:var(--orange)}
 .tile:active{transform:scale(.975)}
 .tile::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c,var(--orange))}
 .tile-name{font-family:'Bebas Neue',sans-serif;font-size:23px;line-height:1.05;letter-spacing:.02em}
+
+/* ---------- Cycles thématiques (accueil, 2026-09-02) ---------- */
+.cyc{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);
+  padding:14px 16px;margin-bottom:10px}
+.cyc-fam{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+  font-weight:700;margin-bottom:6px}
+.cyc-now{display:flex;align-items:baseline;flex-wrap:wrap}
+.cyc-now>*+*{margin-left:8px}
+.cyc-nom{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.02em;color:var(--ink)}
+.cyc-duree{font-size:12px;color:var(--cyan)}
+.cyc-desc{font-size:13px;color:var(--muted);line-height:1.5;margin-top:8px}
+.cyc-suite{font-size:12px;color:var(--muted);margin-top:10px}
+.cyc-suite b{color:var(--sand);font-weight:700}
+.cyc-plus{margin-top:10px;font-size:12px;color:var(--cyan);background:none;border:none;
+  padding:0;text-align:left}
+.cyc-passes{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7}
+.cyc-vide{font-size:13px;color:var(--muted)}
 .tile-count{font-size:12px;color:var(--muted);margin-top:5px}
 .tile-count b{color:var(--c,var(--orange));font-family:'JetBrains Mono',monospace}
 
@@ -496,12 +513,115 @@ function screenHome(){
        + 'Voir toutes les séances '+esc(acc[0].label)+' ›</button>';
   }
 
+  // Emplacement demandé par Ron : juste sous « Mes disciplines ». Le bloc est
+  // volontairement compact (un cycle en cours par famille, le reste replié) —
+  // « Aujourd'hui » reste l'information centrale de l'écran et ne doit pas
+  // être repoussée hors de vue.
+  h += '<div class="section-title">Cycles en cours</div>'
+     + '<div id="cyclesSlot"><div class="spin"></div></div>';
+
   h += '<div class="section-title">Aujourd\'hui</div>'
      + '<div id="todaySlot"><div class="spin"></div></div>';
 
   view.innerHTML = h;
   window.scrollTo(0,0);
+  renderCycles();
   renderTodaySection();
+}
+
+/* ===========================================================================
+   CYCLES THÉMATIQUES — bloc « Cycles en cours » de l'accueil (2026-09-02).
+   Source : CROSSFIT/INPUT/Cycle_Crossfit.md, rempli à la main par Ron. Le
+   format y est documenté en tête du fichier : une famille par `##`, un cycle
+   par `### Nom · durée · statut`, description libre en dessous.
+   Le parsing est tolérant : une ligne mal formée est ignorée, jamais bloquante
+   — un fichier à moitié rempli doit continuer d'afficher ce qui est valide.
+   =========================================================================== */
+let _cyclesOuverts = {};
+
+function parseCycles(md){
+  // On retire les blocs de code : le fichier contient un exemple de format
+  // entre ``` qui, sinon, serait lu comme un vrai cycle.
+  const texte = (md || '').replace(/```[\s\S]*?```/g, '');
+  const familles = [];
+  let fam = null;
+  texte.split(/\r?\n/).forEach(l => {
+    const mFam = l.match(/^##\s+(.+?)\s*$/);
+    if(mFam){ fam = { nom: mFam[1], cycles: [] }; familles.push(fam); return; }
+    if(!fam) return;
+    const mCyc = l.match(/^###\s+(.+?)\s+·\s+(.+?)\s+·\s+(.+?)\s*$/);
+    if(mCyc){
+      fam.cycles.push({ nom: mCyc[1], duree: mCyc[2],
+                        statut: mCyc[3].toLowerCase().trim(), desc: [] });
+      return;
+    }
+    const dernier = fam.cycles[fam.cycles.length - 1];
+    if(dernier && l.trim() && !/^#{1,6}\s/.test(l) && !/^-{3,}$/.test(l.trim())){
+      dernier.desc.push(l.trim());
+    }
+  });
+  return familles.filter(f => f.cycles.length);
+}
+
+async function renderCycles(){
+  const slot = $('#cyclesSlot');
+  if(!slot) return;
+  let familles;
+  try{
+    const res = await api({ action:'cycles', token:S.token });
+    if(!res.ok) throw new Error(res.error || 'Erreur serveur');
+    familles = parseCycles(res.content);
+  }catch(err){
+    // Discret : les cycles sont un complément, pas le cœur de l'écran. Une
+    // panne ici ne doit pas alarmer ni masquer les séances du jour.
+    slot.innerHTML = '<div class="cyc"><div class="cyc-vide">Cycles indisponibles pour le moment.</div></div>';
+    return;
+  }
+  if(!familles.length){ slot.innerHTML = ''; slot.previousElementSibling.remove(); return; }
+  slot.innerHTML = familles.map((f, i) => carteCycle(f, i)).join('');
+}
+
+function carteCycle(f, i){
+  const enCours = f.cycles.filter(c => c.statut === 'en cours');
+  const aVenir  = f.cycles.filter(c => c.statut === 'à venir');
+  const passes  = f.cycles.filter(c => c.statut === 'passé');
+  const ouvert  = !!_cyclesOuverts[i];
+
+  let h = '<div class="cyc"><div class="cyc-fam">' + esc(f.nom.replace(/^Cycle\s+/i, '')) + '</div>';
+
+  if(enCours.length){
+    enCours.forEach(c => {
+      h += '<div class="cyc-now"><span class="cyc-nom">' + esc(c.nom) + '</span>'
+         + '<span class="cyc-duree">' + esc(c.duree) + '</span></div>';
+      if(c.desc.length) h += '<div class="cyc-desc">' + inline(c.desc.join(' ')) + '</div>';
+    });
+  } else {
+    h += '<div class="cyc-vide">Aucun cycle en cours.</div>';
+  }
+
+  if(aVenir.length){
+    h += '<div class="cyc-suite">Ensuite : <b>'
+       + aVenir.map(c => esc(c.nom) + ' (' + esc(c.duree) + ')').join(', ') + '</b></div>';
+  }
+
+  if(passes.length){
+    const pl = passes.length > 1 ? 's' : '';
+    h += '<button type="button" class="cyc-plus" onclick="basculerCycles(' + i + ')">'
+       + (ouvert ? '▾ masquer les cycles passés'
+                 : '▸ ' + passes.length + ' cycle' + pl + ' déjà passé' + pl)
+       + '</button>';
+    if(ouvert){
+      h += '<div class="cyc-passes">'
+         + passes.map(c => '· ' + esc(c.nom) + ' <span style="opacity:.65">(' + esc(c.duree) + ')</span>').join('<br>')
+         + '</div>';
+    }
+  }
+  return h + '</div>';
+}
+
+function basculerCycles(i){
+  _cyclesOuverts[i] = !_cyclesOuverts[i];
+  renderCycles();
 }
 
 /** Pour chaque discipline non-Kids, ouvre le fichier le plus récent, trouve le
@@ -1493,7 +1613,7 @@ function fmtDate(ms){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260902-1442';
+const BUILD = '20260902-2329';
 
 async function checkVersion(){
   try{
