@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260901-1633">
+<meta name="build" content="20260902-1337">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -183,6 +183,9 @@ input:focus{border-color:var(--orange)}
       <input type="password" id="p" name="password" autocomplete="current-password" required>
     </div>
     <button class="btn" id="loginBtn" type="submit">Se connecter</button>
+    <div style="margin-top:14px;text-align:center;font-size:12px;color:var(--muted);line-height:1.5">
+      Écran de salle : laisse l'identifiant <b>vide</b><br>et saisis simplement la clé de l'écran.
+    </div>
     <div class="msg hide" id="loginMsg"></div>
   </form>
 </div>
@@ -219,7 +222,12 @@ $('#loginForm').addEventListener('submit', async e => {
   const btn = $('#loginBtn'), msg = $('#loginMsg');
   btn.disabled = true; btn.textContent = 'Connexion…'; msg.classList.add('hide');
   try{
-    const res = await api({ action:'login', login:$('#u').value, pass:$('#p').value });
+    // Identifiant laissé vide = ce qui est saisi est une clé d'écran, pas un
+    // mot de passe. Permet de démarrer un écran sans toucher à son favori.
+    const saisi = $('#p').value.trim();
+    const res = $('#u').value.trim()
+      ? await api({ action:'login', login:$('#u').value, pass:$('#p').value })
+      : await api({ action:'tvKey', key:saisi });
     if(!res.ok) throw new Error(res.error || 'Échec de la connexion');
     S.token = res.token; S.user = res.user;
     try{ localStorage.setItem('eb_tv', JSON.stringify({t:res.token,u:res.user})); }catch(_){}
@@ -286,6 +294,13 @@ async function refreshTV(){
   }
   if(S.tvIdx >= S.tvCards.length) S.tvIdx = 0;
   renderSlide();
+  // Rien à afficher ALORS QUE des lectures ont échoué : ce n'est pas une
+  // journée sans séance, c'est une panne. On réessaie sans attendre les
+  // 10 minutes du cycle normal.
+  if(!S.tvCards.length && (S.tvCards.echecs || []).length){
+    clearTimeout(S.retryTimer);
+    S.retryTimer = setTimeout(refreshTV, 30000);
+  }
   clearInterval(S.rotateInterval);
   // Pas de rotation si une discipline a été choisie à la main (voir pickSlide) :
   // elle reste affichée tant que Ron ne clique pas sur un autre point — demande
@@ -327,6 +342,7 @@ async function computeTodayCards(){
     return items.find(i => i.week === targetWeek && i.year === targetYear) || items[0];
   }
   const cards = [];
+  const echecs = [];
   for(const d of discs){
     const list = S.items.filter(i => i.discipline === d.key);
     if(!list.length) continue;
@@ -334,22 +350,33 @@ async function computeTodayCards(){
     // les autres : on la saute, l'écran affiche ce qui reste.
     let card = null;
     try{ card = await loadTodayCard(d, pickForWeek(list), now); }
-    catch(e){ console.warn('Discipline ignorée : ' + d.key, e); }
+    catch(e){ echecs.push(d.label); console.warn('Discipline illisible : ' + d.key, e); }
     if(card) cards.push(card);
   }
+  cards.echecs = echecs;   // porté avec le résultat, lu par renderSlide()
   return cards;
 }
 
 async function loadTodayCard(disc, item, now){
   let content = S.todayCache[item.id];
   if(content === undefined){
-    try{
-      const res = await api({ action:'file', token:S.token, id:item.id });
-      content = res.ok ? res.content : null;
-    }catch(e){ content = null; }
-    S.todayCache[item.id] = content;
+    // Deux corrections ici (2026-09-02), toutes deux antérieures à l'affichage
+    // vertical et responsables du « Pas de séance programmée aujourd'hui »
+    // affiché à tort sur le mur de la salle :
+    //
+    // 1. L'échec de lecture était avalé (`content = null`) et devenait
+    //    indiscernable d'une vraie journée sans séance. On le remonte
+    //    désormais à l'appelant, qui affiche « momentanément illisible ».
+    // 2. Le résultat était mis en cache MÊME en cas d'échec : une panne
+    //    réseau d'une seconde condamnait l'écran jusqu'au rechargement
+    //    complet, les rafraîchissements suivants relisant le null en cache.
+    //    On ne met en cache que les lectures réussies.
+    const res = await api({ action:'file', token:S.token, id:item.id });
+    if(!res.ok) throw new Error(res.error || 'Fichier illisible');
+    content = res.content;
+    if(content) S.todayCache[item.id] = content;
   }
-  if(!content) return null;
+  if(!content) return null;   // fichier vide : vraie absence de séance
   const days = splitDays(content);
   const idx = nearestDatedIndex(days, now);
   if(idx < 0) return null;
@@ -405,7 +432,14 @@ function renderSlide(){
         + '</div>';
 
   if(!cards.length){
-    h += '<div class="tv-empty">Pas de séance programmée aujourd\'hui.</div></div>';
+    // Ne jamais annoncer « pas de séance » quand on n'a simplement pas réussi
+    // à lire : sur le mur d'une salle, un coach le prend au mot.
+    const rates = (cards.echecs || []);
+    h += rates.length
+      ? '<div class="tv-empty">⚠️ Programmation momentanément illisible<br>'
+        + '<span style="font-size:.55em">' + esc(rates.join(', '))
+        + ' — nouvelle tentative dans 30 secondes</span></div></div>'
+      : '<div class="tv-empty">Pas de séance programmée aujourd\'hui.</div></div>';
     $('#tv').innerHTML = h;
     return;
   }
@@ -827,7 +861,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260901-1633';
+const BUILD = '20260902-1337';
 
 async function checkVersion(){
   try{
