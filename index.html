@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260902-2329">
+<meta name="build" content="20260902-2337">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -127,6 +127,9 @@ input:focus{border-color:var(--orange)}
 .cyc-now>*+*{margin-left:8px}
 .cyc-nom{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.02em;color:var(--ink)}
 .cyc-duree{font-size:12px;color:var(--cyan)}
+.cyc-badge{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;
+  color:#0f2417;background:#5fd08a;border:1px solid #7ee0a4;border-radius:7px;
+  padding:3px 8px;white-space:nowrap}
 .cyc-desc{font-size:13px;color:var(--muted);line-height:1.5;margin-top:8px}
 .cyc-suite{font-size:12px;color:var(--muted);margin-top:10px}
 .cyc-suite b{color:var(--sand);font-weight:700}
@@ -517,7 +520,7 @@ function screenHome(){
   // volontairement compact (un cycle en cours par famille, le reste replié) —
   // « Aujourd'hui » reste l'information centrale de l'écran et ne doit pas
   // être repoussée hors de vue.
-  h += '<div class="section-title">Cycles en cours</div>'
+  h += '<div class="section-title">Cycle CrossFit</div>'
      + '<div id="cyclesSlot"><div class="spin"></div></div>';
 
   h += '<div class="section-title">Aujourd\'hui</div>'
@@ -592,7 +595,8 @@ function carteCycle(f, i){
   if(enCours.length){
     enCours.forEach(c => {
       h += '<div class="cyc-now"><span class="cyc-nom">' + esc(c.nom) + '</span>'
-         + '<span class="cyc-duree">' + esc(c.duree) + '</span></div>';
+         + '<span class="cyc-duree">' + esc(c.duree) + '</span>'
+         + '<span class="cyc-badge">En cours</span></div>';
       if(c.desc.length) h += '<div class="cyc-desc">' + inline(c.desc.join(' ')) + '</div>';
     });
   } else {
@@ -1613,7 +1617,7 @@ function fmtDate(ms){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260902-2329';
+const BUILD = '20260902-2337';
 
 async function checkVersion(){
   try{
