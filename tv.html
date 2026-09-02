@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260902-1513">
+<meta name="build" content="20260902-1552">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -89,23 +89,26 @@ input:focus{border-color:var(--orange)}
    2026-08-25) — mêmes réglages que TEMPLATE_CF_VERTICAL.html : centré,
    opacité faible, sous le contenu. */
 .tv-watermark{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  position:absolute;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;
   pointer-events:none;z-index:0;overflow:hidden;
 }
 .tv-watermark img{width:60%;max-width:780px;opacity:.16;object-fit:contain}
-.tv-head{display:flex;align-items:center;gap:18px;flex:0 0 auto;margin-bottom:10px;position:relative;z-index:1}
+.tv-head{display:flex;align-items:center;flex:0 0 auto;margin-bottom:10px;position:relative;z-index:1}
+.tv-head>*+*{margin-left:18px}
 .tv-logo{height:38px;width:auto;display:block}
 .tv-headdate{
   flex:1;font-family:'Bebas Neue',sans-serif;letter-spacing:.03em;text-transform:uppercase;
   font-size:22px;color:var(--muted);
 }
-.tv-dots{display:flex;gap:8px}
+.tv-dots{display:flex}
+.tv-dots>*+*{margin-left:8px}
 .tv-dot{width:12px;height:12px;border-radius:50%;background:var(--line);padding:0;flex:0 0 auto}
 .tv-dot.on{background:var(--c,var(--orange))}
 .tv-empty{margin:auto;text-align:center;color:var(--muted);font-size:28px;position:relative;z-index:1}
 
 .tv-slide{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative;z-index:1}
-.tv-slide-top{flex:0 0 auto;display:flex;align-items:baseline;gap:16px;margin-bottom:10px}
+.tv-slide-top{flex:0 0 auto;display:flex;align-items:baseline;margin-bottom:10px}
+.tv-slide-top>*+*{margin-left:16px}
 .tv-pill{
   display:inline-block;padding:.35em 1em;border-radius:999px;
   font-size:20px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
@@ -139,8 +142,13 @@ input:focus{border-color:var(--orange)}
 @media (orientation: portrait){
   .tv-screen{padding:30px 34px 34px}
   .wod-grid.has-2col{flex-direction:column}
-  .wod-grid.has-2col>.wod-col+.wod-col{margin-left:0;margin-top:1.6em}
-  .tv-head{gap:14px;margin-bottom:14px}
+  .wod-grid.has-2col>.wod-col{flex:0 0 auto}      /* hauteur naturelle */
+  /* `flex` répété ici : la règle paysage `…>.wod-col+.wod-col{flex:1.15…}`
+     est plus spécifique que `…>.wod-col{flex:0 0 auto}` et l'emportait,
+     laissant le 2e bloc étiré sur toute la hauteur restante. */
+  .wod-grid.has-2col>.wod-col+.wod-col{margin-left:0;margin-top:1.4em;flex:0 0 auto}
+  .tv-head{margin-bottom:14px}
+  .tv-head>*+*{margin-left:14px}
   .tv-slide-top{margin-bottom:14px}
 }
 /* Volontairement pas étiré (contrairement à .wod-col, qui l'est par la
@@ -152,15 +160,18 @@ input:focus{border-color:var(--orange)}
    remplissage généreux. En comprimant ce « chrome » non-texte, le budget de
    hauteur restant pour le texte augmente, donc fitOne() peut converger sur
    une taille de police plus grande pour un même contenu. */
-.wod-col-inner{display:flex;flex-direction:column;gap:.6em}
-.wsec-head{display:flex;align-items:center;gap:.5em;margin-bottom:.22em;flex-wrap:wrap}
+.wod-col-inner{display:flex;flex-direction:column}
+.wod-col-inner>*+*{margin-top:.6em}
+.wsec-head{display:flex;align-items:center;margin-bottom:.22em;flex-wrap:wrap}
+.wsec-head>*+*{margin-left:.5em}
 .wtag{font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:.12em .5em;border-radius:8px;font-size:.62em;white-space:nowrap}
 .wsec.a .wtag{background:var(--orange2);color:var(--navy)}
 .wsec.b .wtag{background:var(--cyan);color:var(--navy)}
 .wsec.c .wtag{background:var(--red);color:#fff}
 .wtitle{font-weight:900;text-transform:uppercase;letter-spacing:.02em;color:#fff;font-size:.62em}
 .wcard{background:rgba(255,255,255,.05);border:1px solid rgba(56,204,245,.22);border-radius:12px;padding:.35em .6em}
-.wrow{display:flex;align-items:baseline;gap:.5em;padding:.08em 0;font-size:.56em}
+.wrow{display:flex;align-items:baseline;padding:.08em 0;font-size:.56em}
+.wrow>*+*{margin-left:.5em}
 .wdot{width:.42em;height:.42em;border-radius:50%;background:var(--orange2);flex:0 0 auto;margin-top:.35em}
 .wsec.b .wdot{background:var(--cyan)}
 .wsec.c .wdot{background:var(--red)}
@@ -539,6 +550,17 @@ function renderSlide(){
  *  à faire, elle vise directement 90-95% comme avant. */
 function fitColumns(){
   const cols = document.querySelectorAll('#tvBody .wod-col');
+  const grid = document.querySelector('#tvBody .wod-grid');
+
+  // Blocs empilés (portrait, 2 blocs) : on ajuste l'ENSEMBLE, pas chaque bloc.
+  // Chacun garde sa hauteur naturelle, ils se suivent avec un espacement
+  // régulier, et le vide restant se retrouve en bas plutôt qu'au milieu.
+  if(grid && cols.length > 1 && getComputedStyle(grid).flexDirection === 'column'){
+    cols.forEach(c => { c.style.fontSize = ''; });
+    fitPile(grid, 0.92, 14, 140);
+    return;
+  }
+
   if(cols.length <= 1){
     cols.forEach(col => fitOne(col, 0.90, 14, 140));
     return;
@@ -554,6 +576,33 @@ function fitColumns(){
  *  le texte : il faut la hauteur RÉELLE du contenu, mesurée sur le wrapper
  *  interne (.wod-col-inner) qui, lui, n'est pas étiré et suit son contenu.
  *  Renvoie la taille (px) trouvée — utilisé par fitColumns() pour harmoniser. */
+/** Même principe que fitOne, mais la mesure porte sur le conteneur lui-même
+ *  (ses enfants sont à hauteur naturelle) au lieu d'un wrapper interne. */
+function fitPile(el, target, sMin, sMax){
+  const avail = el.clientHeight;
+  if(!avail || !el.lastElementChild) return sMin;
+  // Surtout PAS scrollHeight : sur un élément qui ne déborde pas, il vaut sa
+  // propre hauteur, le rapport reste bloqué à 1 et la boucle rétrécit
+  // jusqu'au minimum (constaté à l'essai). On mesure la distance du haut du
+  // conteneur au bas du dernier enfant — marges comprises.
+  const contenu = () => el.lastElementChild.getBoundingClientRect().bottom
+                      - el.getBoundingClientRect().top;
+  let s = 32, guard = 0;
+  el.style.fontSize = s + 'px';
+  const lo = target - 0.05, hi = target + 0.04;
+  while(guard++ < 200){
+    const ratio = contenu() / avail;
+    if(ratio > 0.99) s -= 1;
+    else if(ratio < lo) s += 1;
+    else if(ratio > hi) s -= 1;
+    else break;
+    s = Math.max(sMin, Math.min(sMax, s));
+    el.style.fontSize = s + 'px';
+    if(s <= sMin || s >= sMax) break;
+  }
+  return s;
+}
+
 function fitOne(el, target, sMin, sMax){
   const avail = el.clientHeight;
   const inner = el.querySelector('.wod-col-inner');
@@ -904,7 +953,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260902-1513';
+const BUILD = '20260902-1552';
 
 async function checkVersion(){
   try{
