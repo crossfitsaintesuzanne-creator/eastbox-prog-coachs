@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260902-1453">
+<meta name="build" content="20260902-1513">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -39,7 +39,10 @@ input{font-family:inherit;font-size:16px}
 .hide{display:none !important}
 
 /* ---------- Écran connexion ---------- */
-#login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;overflow:auto}
+/* Centrage en flexbox et non en grille : la carte apparaissait collée en haut
+   à gauche sur l'écran de salle (photo du 2026-08-30) — signe que `display:grid`
+   et `place-items` n'y sont pas compris. Flexbox date de 2013, la grille de 2017. */
+#login{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto}
 .card-login{
   width:100%;max-width:380px;background:var(--navy-2);
   border:1px solid var(--line);border-radius:20px;padding:30px 24px;
@@ -108,13 +111,15 @@ input:focus{border-color:var(--orange)}
   font-size:20px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
   background:var(--c,var(--orange));color:#10192b;
 }
-.tv-slide-body{flex:1;min-height:0;overflow:hidden}
+.tv-slide-body{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
 .doc-fallback{font-size:26px}
 
 /* ---------- Rendu structuré des séances (façon affiches JPEG) ---------- */
-.wod-grid{display:grid;grid-template-columns:1fr;gap:1.2em;height:100%}
-.wod-grid.has-2col{grid-template-columns:1fr 1.15fr;gap:2.2em}
-.wod-col{min-width:0;overflow:hidden}
+.wod-grid{display:flex;flex-direction:column;flex:1;min-height:0}
+.wod-grid.has-2col{flex-direction:row}
+.wod-grid>.wod-col+.wod-col{margin-top:1.2em}
+.wod-grid.has-2col>.wod-col+.wod-col{margin-top:0;margin-left:2.2em;flex:1.15 1 0%}
+.wod-col{min-width:0;min-height:0;overflow:hidden;flex:1 1 0%}
 
 /* ---------- Écran vertical (2026-08-30, demande de Ron) ----------
    Le même fichier sert les deux orientations : un seul upload, une seule
@@ -133,7 +138,8 @@ input:focus{border-color:var(--orange)}
    égal, le texte est plus gros qu'en paysage, pas plus petit. */
 @media (orientation: portrait){
   .tv-screen{padding:30px 34px 34px}
-  .wod-grid.has-2col{grid-template-columns:1fr;grid-template-rows:1fr 1.15fr;gap:1.6em}
+  .wod-grid.has-2col{flex-direction:column}
+  .wod-grid.has-2col>.wod-col+.wod-col{margin-left:0;margin-top:1.6em}
   .tv-head{gap:14px;margin-bottom:14px}
   .tv-slide-top{margin-bottom:14px}
 }
@@ -507,7 +513,7 @@ function renderSlide(){
   // le premier arrivé fait le travail, l'autre ne fait rien.
   document.fonts.ready.then(() => {
     let fait = false;
-    const lancer = () => { if(fait) return; fait = true; fitColumns(); };
+    const lancer = () => { if(fait) return; fait = true; fitColumns(); tracerGeometrie(); };
     requestAnimationFrame(lancer);
     setTimeout(lancer, 120);
   });
@@ -898,7 +904,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260902-1453';
+const BUILD = '20260902-1513';
 
 async function checkVersion(){
   try{
@@ -950,6 +956,23 @@ function afficheDiagnosticConnexion(){
   }catch(_){}
 }
 
+/** Complète la ligne de diagnostic avec la hauteur RÉELLE de chaque étage de
+ *  la mise en page, plus la taille de police retenue. Sur un écran sans
+ *  console, c'est le seul moyen de voir lequel s'effondre : une hauteur nulle
+ *  ou minuscule au milieu de la chaîne désigne le coupable immédiatement. */
+function tracerGeometrie(){
+  try{
+    const el = document.getElementById('ebDiag');
+    if(!el) return;
+    const h = s => { const n = document.querySelector(s); return n ? n.clientHeight : '–'; };
+    const col = document.querySelector('#tvBody .wod-col');
+    el.textContent = el.dataset.base + ' · écran ' + h('.tv-screen')
+      + ' · slide ' + h('.tv-slide') + ' · corps ' + h('#tvBody')
+      + ' · col ' + h('#tvBody .wod-col')
+      + ' · px ' + ((col && col.style.fontSize) || '–');
+  }catch(_){}
+}
+
 function afficheVersion(){
   try{
     // On mesure vh ET dvh : `dvh` date de 2022 et n'existe pas sur le
@@ -968,9 +991,10 @@ function afficheVersion(){
     const geo = innerWidth + '×' + innerHeight + ' · vh ' + vh + ' · dvh ' + dvh
               + (utile && Math.abs(utile - innerHeight) <= 2 ? '' : ' ⚠');
     document.body.insertAdjacentHTML('beforeend',
-      '<div style="position:fixed;right:8px;bottom:6px;z-index:9999;pointer-events:none;'
-      + 'font:400 10px/1 system-ui,-apple-system,sans-serif;color:#8ea0bd;opacity:.45">v'
+      '<div id="ebDiag" style="position:fixed;right:8px;bottom:6px;z-index:9999;pointer-events:none;'
+      + 'font:400 13px/1 system-ui,-apple-system,sans-serif;color:#8ea0bd;opacity:.5">v'
       + BUILD + ' · ' + geo + '</div>');
+    document.getElementById('ebDiag').dataset.base = 'v' + BUILD + ' · ' + geo;
   }catch(_){}
 }
 afficheVersion();
