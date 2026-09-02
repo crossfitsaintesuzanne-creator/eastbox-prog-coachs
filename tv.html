@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260902-1337">
+<meta name="build" content="20260902-1356">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -176,7 +176,10 @@ input:focus{border-color:var(--orange)}
     <div class="logo-sub">Écran de diffusion</div>
     <div class="field">
       <label for="u">Identifiant</label>
-      <input type="text" id="u" name="username" autocomplete="username" required>
+      <input type="text" id="u" name="username" autocomplete="username"><!-- Pas de `required` : un écran de salle se connecte avec la seule clé,
+           identifiant laissé vide. Avec `required`, le navigateur bloquait
+           l'envoi avant même d'exécuter notre code — le bouton ne faisait
+           rien, sans le moindre message (constaté par Ron, 2026-09-02). -->
     </div>
     <div class="field">
       <label for="p">Mot de passe</label>
@@ -861,7 +864,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260902-1337';
+const BUILD = '20260902-1356';
 
 async function checkVersion(){
   try{
