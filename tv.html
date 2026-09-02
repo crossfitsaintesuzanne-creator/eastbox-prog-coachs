@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260902-1356">
+<meta name="build" content="20260902-1432">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -345,7 +345,7 @@ async function computeTodayCards(){
     return items.find(i => i.week === targetWeek && i.year === targetYear) || items[0];
   }
   const cards = [];
-  const echecs = [];
+  const echecs = [];   // porte aussi .raison : le message de la 1re erreur
   for(const d of discs){
     const list = S.items.filter(i => i.discipline === d.key);
     if(!list.length) continue;
@@ -353,7 +353,13 @@ async function computeTodayCards(){
     // les autres : on la saute, l'écran affiche ce qui reste.
     let card = null;
     try{ card = await loadTodayCard(d, pickForWeek(list), now); }
-    catch(e){ echecs.push(d.label); console.warn('Discipline illisible : ' + d.key, e); }
+    catch(e){
+      // On garde le message de la 1re erreur : sur un écran sans console ni
+      // clavier, c'est la seule façon de savoir POURQUOI la lecture échoue.
+      echecs.push(d.label);
+      if(!echecs.raison) echecs.raison = String((e && e.message) || e);
+      console.warn('Discipline illisible : ' + d.key, e);
+    }
     if(card) cards.push(card);
   }
   cards.echecs = echecs;   // porté avec le résultat, lu par renderSlide()
@@ -441,7 +447,8 @@ function renderSlide(){
     h += rates.length
       ? '<div class="tv-empty">⚠️ Programmation momentanément illisible<br>'
         + '<span style="font-size:.55em">' + esc(rates.join(', '))
-        + ' — nouvelle tentative dans 30 secondes</span></div></div>'
+        + ' — nouvelle tentative dans 30 secondes<br>'
+        + esc(rates.raison || '') + '</span></div></div>'
       : '<div class="tv-empty">Pas de séance programmée aujourd\'hui.</div></div>';
     $('#tv').innerHTML = h;
     return;
@@ -864,7 +871,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260902-1356';
+const BUILD = '20260902-1432';
 
 async function checkVersion(){
   try{
