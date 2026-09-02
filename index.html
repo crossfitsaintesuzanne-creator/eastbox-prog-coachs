@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260830-1152">
+<meta name="build" content="20260902-1442">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1292,7 +1292,7 @@ const DAYS = [
   ['MONDAY','LUNDI'],['TUESDAY','MARDI'],['WEDNESDAY','MERCREDI'],
   ['THURSDAY','JEUDI'],['FRIDAY','VENDREDI'],['SATURDAY','SAMEDI'],['SUNDAY','DIMANCHE']
 ];
-const DAY_RE = new RegExp('\\b(' + DAYS.flat().join('|') + ')\\b', 'i');
+const DAY_RE = new RegExp('\\b(' + [].concat.apply([], DAYS).join('|') + ')\\b', 'i');
 const NOM_DATE_RE = /(\d{2})\/(\d{2})\/(\d{4})/;
 function parseNomDate(s){
   const m = s.match(NOM_DATE_RE);
@@ -1493,7 +1493,7 @@ function fmtDate(ms){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260830-1152';
+const BUILD = '20260902-1442';
 
 async function checkVersion(){
   try{

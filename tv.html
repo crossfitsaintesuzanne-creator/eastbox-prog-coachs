@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260902-1432">
+<meta name="build" content="20260902-1442">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -197,6 +197,33 @@ input:focus{border-color:var(--orange)}
 <div id="tv" class="hide"></div>
 
 <script>
+/* ===========================================================================
+   FILET D'ERREUR — à installer AVANT tout le reste (2026-09-02).
+
+   Le 2026-09-02, une seule ligne utilisant Array.prototype.flat() (ES2019,
+   absent du navigateur de l'écran de salle) a fait échouer le script au
+   niveau supérieur. Tout ce qui suivait cette ligne n'a jamais été exécuté :
+   affichage de la version, connexion automatique par clé, vérification de
+   version. L'écran ne montrait rien d'anormal — il affichait simplement le
+   formulaire de connexion, et il a fallu trois jours pour comprendre.
+
+   Une erreur au niveau supérieur ne doit plus jamais être invisible : sur un
+   écran sans clavier ni console, elle s'affiche à l'écran.
+   =========================================================================== */
+window.addEventListener('error', function (ev) {
+  try{
+    if(document.getElementById('ebErreur')) return;   // la première suffit
+    var d = document.createElement('div');
+    d.id = 'ebErreur';
+    d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;'
+      + 'background:#7f1d1d;color:#fff;padding:14px 18px;'
+      + 'font:600 20px/1.4 system-ui,-apple-system,sans-serif';
+    d.textContent = '⚠️ Erreur de script — ' + (ev.message || 'inconnue')
+                  + (ev.lineno ? ' (ligne ' + ev.lineno + ')' : '');
+    (document.body || document.documentElement).appendChild(d);
+  }catch(_){}
+});
+
 /* ===========================================================================
    CONFIGURATION — doit rester identique à la constante API d'index.html.
    =========================================================================== */
@@ -708,7 +735,7 @@ const DAYS = [
   ['MONDAY','LUNDI'],['TUESDAY','MARDI'],['WEDNESDAY','MERCREDI'],
   ['THURSDAY','JEUDI'],['FRIDAY','VENDREDI'],['SATURDAY','SAMEDI'],['SUNDAY','DIMANCHE']
 ];
-const DAY_RE = new RegExp('\\b(' + DAYS.flat().join('|') + ')\\b', 'i');
+const DAY_RE = new RegExp('\\b(' + [].concat.apply([], DAYS).join('|') + ')\\b', 'i');
 const NOM_DATE_RE = /(\d{2})\/(\d{2})\/(\d{4})/;
 
 function parseNomDate(s){
@@ -871,7 +898,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260902-1432';
+const BUILD = '20260902-1442';
 
 async function checkVersion(){
   try{
