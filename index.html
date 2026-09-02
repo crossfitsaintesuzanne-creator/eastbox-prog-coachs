@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260902-2337">
+<meta name="build" content="20260903-0011">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -135,7 +135,26 @@ input:focus{border-color:var(--orange)}
 .cyc-suite b{color:var(--sand);font-weight:700}
 .cyc-plus{margin-top:10px;font-size:12px;color:var(--cyan);background:none;border:none;
   padding:0;text-align:left}
-.cyc-passes{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7}
+.cyc-passes{margin-top:10px}
+/* Même structure que les tuiles de discipline (demande de Ron, 2026-09-03),
+   mais en plus petit et en teinte sourde : ce sont des cycles terminés, ils ne
+   doivent pas concurrencer visuellement les disciplines actives juste au-dessus. */
+.cyc-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.cyc-tile{position:relative;background:var(--navy-3);border:1px solid var(--line);
+  border-radius:12px;padding:11px 12px;text-align:left;overflow:hidden;
+  transition:transform .12s,border-color .15s}
+.cyc-tile:active{transform:scale(.975)}
+.cyc-tile.ouvrable{border-color:rgba(56,204,245,.28)}
+.cyc-tile.on{border-color:var(--cyan)}
+.cyc-tile::before{content:'';position:absolute;top:0;bottom:0;left:0;width:3px;background:var(--muted);opacity:.5}
+.cyc-tile.ouvrable::before{background:var(--cyan);opacity:.8}
+.cyc-tile-nom{font-family:'Bebas Neue',sans-serif;font-size:17px;line-height:1.1;
+  letter-spacing:.02em;color:var(--ink)}
+.cyc-tile-duree{font-size:11px;color:var(--muted);margin-top:3px}
+.cyc-detail{margin-top:10px;padding:11px 13px;background:var(--navy-3);
+  border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:10px;
+  font-size:13px;color:var(--muted);line-height:1.5}
+.cyc-detail b{color:var(--ink);font-weight:700}
 .cyc-vide{font-size:13px;color:var(--muted)}
 .tile-count{font-size:12px;color:var(--muted);margin-top:5px}
 .tile-count b{color:var(--c,var(--orange));font-family:'JetBrains Mono',monospace}
@@ -541,6 +560,7 @@ function screenHome(){
    — un fichier à moitié rempli doit continuer d'afficher ce qui est valide.
    =========================================================================== */
 let _cyclesOuverts = {};
+let _cycleDetail = null;   // clé « famille-cycle » du cycle passé déplié
 
 function parseCycles(md){
   // On retire les blocs de code : le fichier contient un exemple de format
@@ -615,9 +635,27 @@ function carteCycle(f, i){
                  : '▸ ' + passes.length + ' cycle' + pl + ' déjà passé' + pl)
        + '</button>';
     if(ouvert){
-      h += '<div class="cyc-passes">'
-         + passes.map(c => '· ' + esc(c.nom) + ' <span style="opacity:.65">(' + esc(c.duree) + ')</span>').join('<br>')
+      // Une tuile par cycle passé. Celles qui ont une description sont
+      // ouvrables (liseré cyan) ; les autres restent de simples repères — la
+      // moitié des cycles n'a pas encore de texte, autant que ça se voie.
+      h += '<div class="cyc-passes"><div class="cyc-tiles">'
+         + passes.map((c, j) => {
+             const cle = i + '-' + j;
+             const ouvrable = c.desc.length > 0;
+             const actif = _cycleDetail === cle;
+             return '<button type="button" class="cyc-tile'
+                  + (ouvrable ? ' ouvrable' : '') + (actif ? ' on' : '') + '"'
+                  + (ouvrable ? ' onclick="ouvrirCycle(\'' + cle + '\')"' : ' disabled')
+                  + '><div class="cyc-tile-nom">' + esc(c.nom) + '</div>'
+                  + '<div class="cyc-tile-duree">' + esc(c.duree) + '</div></button>';
+           }).join('')
          + '</div>';
+      const choisi = passes.find((c, j) => _cycleDetail === i + '-' + j);
+      if(choisi){
+        h += '<div class="cyc-detail"><b>' + esc(choisi.nom) + '</b> · '
+           + esc(choisi.duree) + '<br>' + inline(choisi.desc.join(' ')) + '</div>';
+      }
+      h += '</div>';
     }
   }
   return h + '</div>';
@@ -625,6 +663,14 @@ function carteCycle(f, i){
 
 function basculerCycles(i){
   _cyclesOuverts[i] = !_cyclesOuverts[i];
+  if(!_cyclesOuverts[i] && _cycleDetail && _cycleDetail.indexOf(i + '-') === 0) _cycleDetail = null;
+  renderCycles();
+}
+
+/** Un seul détail ouvert à la fois : sur un écran de téléphone, plusieurs
+ *  descriptions dépliées noieraient la liste. Recliquer referme. */
+function ouvrirCycle(cle){
+  _cycleDetail = (_cycleDetail === cle) ? null : cle;
   renderCycles();
 }
 
@@ -1617,7 +1663,7 @@ function fmtDate(ms){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260902-2337';
+const BUILD = '20260903-0011';
 
 async function checkVersion(){
   try{
