@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260902-1442">
+<meta name="build" content="20260902-1453">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -31,7 +31,7 @@ html,body{margin:0;padding:0;height:100%}
 body{
   background:var(--navy); color:var(--ink);
   font-family:'Inter',system-ui,-apple-system,sans-serif;
-  line-height:1.5; height:100dvh; overflow:hidden;
+  line-height:1.5; height:100vh; height:100dvh; overflow:hidden;
 }
 h1,h2,h3,h4{margin:0;font-weight:700}
 button{font-family:inherit;font-size:inherit;cursor:pointer;border:0;background:none;color:inherit}
@@ -39,7 +39,7 @@ input{font-family:inherit;font-size:16px}
 .hide{display:none !important}
 
 /* ---------- Écran connexion ---------- */
-#login{min-height:100dvh;display:grid;place-items:center;padding:24px;overflow:auto}
+#login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;overflow:auto}
 .card-login{
   width:100%;max-width:380px;background:var(--navy-2);
   border:1px solid var(--line);border-radius:20px;padding:30px 24px;
@@ -81,7 +81,7 @@ input:focus{border-color:var(--orange)}
 @keyframes sp{to{transform:rotate(360deg)}}
 
 /* ---------- Mode diffusion TV ---------- */
-.tv-screen{height:100dvh;display:flex;flex-direction:column;padding:22px 40px 26px;position:relative}
+.tv-screen{height:100vh;height:100dvh;display:flex;flex-direction:column;padding:22px 40px 26px;position:relative}
 /* Filigrane phoenix EastBox en fond, façon affiches JPEG (demande de Ron,
    2026-08-25) — mêmes réglages que TEMPLATE_CF_VERTICAL.html : centré,
    opacité faible, sous le contenu. */
@@ -898,7 +898,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260902-1442';
+const BUILD = '20260902-1453';
 
 async function checkVersion(){
   try{
@@ -952,13 +952,21 @@ function afficheDiagnosticConnexion(){
 
 function afficheVersion(){
   try{
-    const sonde = document.createElement('div');
-    sonde.style.cssText = 'position:absolute;top:-9999px;height:100dvh';
-    document.body.appendChild(sonde);
-    const dvh = sonde.clientHeight;
-    sonde.remove();
-    const geo = innerWidth + '×' + innerHeight + ' · dvh ' + dvh
-              + (dvh && Math.abs(dvh - innerHeight) <= 2 ? '' : ' ⚠');
+    // On mesure vh ET dvh : `dvh` date de 2022 et n'existe pas sur le
+    // navigateur de l'écran de salle. Une unité inconnue rend la déclaration
+    // invalide, la hauteur retombe sur `auto` et toute la mise en page
+    // s'effondre — d'où le repli `height:100vh` posé avant chaque `100dvh`.
+    function mesure(unite){
+      var d = document.createElement('div');
+      d.style.cssText = 'position:absolute;top:-9999px;height:100' + unite;
+      document.body.appendChild(d);
+      var h = d.clientHeight; d.parentNode.removeChild(d);
+      return h;
+    }
+    const vh = mesure('vh'), dvh = mesure('dvh');
+    const utile = dvh || vh;
+    const geo = innerWidth + '×' + innerHeight + ' · vh ' + vh + ' · dvh ' + dvh
+              + (utile && Math.abs(utile - innerHeight) <= 2 ? '' : ' ⚠');
     document.body.insertAdjacentHTML('beforeend',
       '<div style="position:fixed;right:8px;bottom:6px;z-index:9999;pointer-events:none;'
       + 'font:400 10px/1 system-ui,-apple-system,sans-serif;color:#8ea0bd;opacity:.45">v'
