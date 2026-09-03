@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260903-0011">
+<meta name="build" content="20260903-1100">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -135,7 +135,6 @@ input:focus{border-color:var(--orange)}
 .cyc-suite b{color:var(--sand);font-weight:700}
 .cyc-plus{margin-top:10px;font-size:12px;color:var(--cyan);background:none;border:none;
   padding:0;text-align:left}
-.cyc-passes{margin-top:10px}
 /* Même structure que les tuiles de discipline (demande de Ron, 2026-09-03),
    mais en plus petit et en teinte sourde : ce sont des cycles terminés, ils ne
    doivent pas concurrencer visuellement les disciplines actives juste au-dessus. */
@@ -144,10 +143,18 @@ input:focus{border-color:var(--orange)}
   border-radius:12px;padding:11px 12px;text-align:left;overflow:hidden;
   transition:transform .12s,border-color .15s}
 .cyc-tile:active{transform:scale(.975)}
-.cyc-tile.ouvrable{border-color:rgba(56,204,245,.28)}
 .cyc-tile.on{border-color:var(--cyan)}
 .cyc-tile::before{content:'';position:absolute;top:0;bottom:0;left:0;width:3px;background:var(--muted);opacity:.5}
-.cyc-tile.ouvrable::before{background:var(--cyan);opacity:.8}
+.cyc-tile.encours::before{background:#5fd08a;opacity:1}
+.cyc-tile.avenir::before{background:var(--sand);opacity:.9}
+/* Tuile d'accès à la page complète : pleine largeur dans la carte, accent cyan
+   pour la distinguer des tuiles de cycle qu'elle mène à consulter. */
+.cyc-tile-acces{display:block;width:100%;margin-top:12px;background:var(--navy-3);
+  border-color:rgba(56,204,245,.3)}
+.cyc-tile-acces::before{background:var(--cyan);opacity:.9}
+.cyc-tile-st{font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;margin-top:5px}
+.cyc-tile-st.vert{color:#5fd08a}
+.cyc-tile-st.sable{color:var(--sand)}
 .cyc-tile-nom{font-family:'Bebas Neue',sans-serif;font-size:17px;line-height:1.1;
   letter-spacing:.02em;color:var(--ink)}
 .cyc-tile-duree{font-size:11px;color:var(--muted);margin-top:3px}
@@ -559,8 +566,8 @@ function screenHome(){
    Le parsing est tolérant : une ligne mal formée est ignorée, jamais bloquante
    — un fichier à moitié rempli doit continuer d'afficher ce qui est valide.
    =========================================================================== */
-let _cyclesOuverts = {};
-let _cycleDetail = null;   // clé « famille-cycle » du cycle passé déplié
+let _cyclesData = null;    // familles parsées, gardées entre les écrans
+let _cycleDetail = null;   // clé « famille-cycle » du cycle déplié (page complète)
 
 function parseCycles(md){
   // On retire les blocs de code : le fichier contient un exemple de format
@@ -570,7 +577,7 @@ function parseCycles(md){
   let fam = null;
   texte.split(/\r?\n/).forEach(l => {
     const mFam = l.match(/^##\s+(.+?)\s*$/);
-    if(mFam){ fam = { nom: mFam[1], cycles: [] }; familles.push(fam); return; }
+    if(mFam){ fam = { nom: mFam[1].replace(/^Cycle\s+/i, ''), cycles: [] }; familles.push(fam); return; }
     if(!fam) return;
     const mCyc = l.match(/^###\s+(.+?)\s+·\s+(.+?)\s+·\s+(.+?)\s*$/);
     if(mCyc){
@@ -586,14 +593,20 @@ function parseCycles(md){
   return familles.filter(f => f.cycles.length);
 }
 
+async function chargerCycles(){
+  if(_cyclesData) return _cyclesData;
+  const res = await api({ action:'cycles', token:S.token });
+  if(!res.ok) throw new Error(res.error || 'Erreur serveur');
+  _cyclesData = parseCycles(res.content);
+  return _cyclesData;
+}
+
 async function renderCycles(){
   const slot = $('#cyclesSlot');
   if(!slot) return;
   let familles;
   try{
-    const res = await api({ action:'cycles', token:S.token });
-    if(!res.ok) throw new Error(res.error || 'Erreur serveur');
-    familles = parseCycles(res.content);
+    familles = await chargerCycles();
   }catch(err){
     // Discret : les cycles sont un complément, pas le cœur de l'écran. Une
     // panne ici ne doit pas alarmer ni masquer les séances du jour.
@@ -608,9 +621,8 @@ function carteCycle(f, i){
   const enCours = f.cycles.filter(c => c.statut === 'en cours');
   const aVenir  = f.cycles.filter(c => c.statut === 'à venir');
   const passes  = f.cycles.filter(c => c.statut === 'passé');
-  const ouvert  = !!_cyclesOuverts[i];
 
-  let h = '<div class="cyc"><div class="cyc-fam">' + esc(f.nom.replace(/^Cycle\s+/i, '')) + '</div>';
+  let h = '<div class="cyc"><div class="cyc-fam">' + esc(f.nom) + '</div>';
 
   if(enCours.length){
     enCours.forEach(c => {
@@ -628,50 +640,86 @@ function carteCycle(f, i){
        + aVenir.map(c => esc(c.nom) + ' (' + esc(c.duree) + ')').join(', ') + '</b></div>';
   }
 
+  // Tuile d'accès à la page complète (Ron, 2026-09-03) plutôt qu'un dépliage
+  // sur place : 25 cycles n'ont pas leur place sur l'écran d'accueil, dont le
+  // rôle est de montrer la séance du jour.
   if(passes.length){
-    const pl = passes.length > 1 ? 's' : '';
-    h += '<button type="button" class="cyc-plus" onclick="basculerCycles(' + i + ')">'
-       + (ouvert ? '▾ masquer les cycles passés'
-                 : '▸ ' + passes.length + ' cycle' + pl + ' déjà passé' + pl)
-       + '</button>';
-    if(ouvert){
-      // Une tuile par cycle passé. Celles qui ont une description sont
-      // ouvrables (liseré cyan) ; les autres restent de simples repères — la
-      // moitié des cycles n'a pas encore de texte, autant que ça se voie.
-      h += '<div class="cyc-passes"><div class="cyc-tiles">'
-         + passes.map((c, j) => {
-             const cle = i + '-' + j;
-             const ouvrable = c.desc.length > 0;
-             const actif = _cycleDetail === cle;
-             return '<button type="button" class="cyc-tile'
-                  + (ouvrable ? ' ouvrable' : '') + (actif ? ' on' : '') + '"'
-                  + (ouvrable ? ' onclick="ouvrirCycle(\'' + cle + '\')"' : ' disabled')
-                  + '><div class="cyc-tile-nom">' + esc(c.nom) + '</div>'
-                  + '<div class="cyc-tile-duree">' + esc(c.duree) + '</div></button>';
-           }).join('')
-         + '</div>';
-      const choisi = passes.find((c, j) => _cycleDetail === i + '-' + j);
-      if(choisi){
-        h += '<div class="cyc-detail"><b>' + esc(choisi.nom) + '</b> · '
-           + esc(choisi.duree) + '<br>' + inline(choisi.desc.join(' ')) + '</div>';
-      }
-      h += '</div>';
-    }
+    h += '<button type="button" class="cyc-tile cyc-tile-acces" onclick="screenCycles(\'' + esc(f.nom) + '\')">'
+       + '<div class="cyc-tile-nom">Cycles passés</div>'
+       + '<div class="cyc-tile-duree">' + passes.length + ' cycle'
+       + (passes.length > 1 ? 's' : '') + ' · voir le détail ›</div></button>';
   }
   return h + '</div>';
 }
 
-function basculerCycles(i){
-  _cyclesOuverts[i] = !_cyclesOuverts[i];
-  if(!_cyclesOuverts[i] && _cycleDetail && _cycleDetail.indexOf(i + '-') === 0) _cycleDetail = null;
-  renderCycles();
+/* ---------------------------------------------------------------------------
+   PAGE COMPLÈTE — tous les cycles, toutes familles, en tuiles.
+   Ouverte depuis la tuile « Cycles passés » d'une famille : on fait défiler
+   jusqu'à cette famille, mais la page les montre toutes, pour qu'un coach
+   puisse parcourir l'ensemble sans revenir en arrière.
+   --------------------------------------------------------------------------- */
+const CYC_ORDRE = { 'en cours': 0, 'à venir': 1, 'passé': 2 };
+
+async function screenCycles(famCible){
+  S.disc = S.file = null;
+  // Entrée depuis l'accueil (une famille est visée) : on repart d'une page
+  // propre. Sans ça, la description ouverte lors d'une visite précédente
+  // rouvrait toute seule, loin de la famille qu'on venait de demander.
+  if(famCible) _cycleDetail = null;
+  view.innerHTML = '<button class="back" onclick="screenHome()">‹ Accueil</button>'
+                 + '<div class="spin"></div>';
+  let familles;
+  try{
+    familles = await chargerCycles();
+  }catch(err){
+    view.innerHTML = '<button class="back" onclick="screenHome()">‹ Accueil</button>'
+                   + errorBox('Impossible de charger les cycles.', 'screenCycles()');
+    return;
+  }
+
+  let h = '<button class="back" onclick="screenHome()">‹ Accueil</button>';
+  familles.forEach((f, i) => {
+    h += '<div class="section-title" id="fam' + i + '">' + esc(f.nom) + '</div>'
+       + '<div class="cyc-tiles">'
+       + f.cycles.slice().sort((a, b) =>
+             (CYC_ORDRE[a.statut] === undefined ? 9 : CYC_ORDRE[a.statut])
+           - (CYC_ORDRE[b.statut] === undefined ? 9 : CYC_ORDRE[b.statut]))
+           .map(c => tuileCycle(c, i, f.cycles.indexOf(c))).join('')
+       + '</div>';
+    const choisi = f.cycles.find((c, j) => _cycleDetail === i + '-' + j);
+    if(choisi){
+      h += '<div class="cyc-detail"><b>' + esc(choisi.nom) + '</b> · ' + esc(choisi.duree)
+         + (choisi.desc.length ? '<br>' + inline(choisi.desc.join(' '))
+                               : '<br><i>Description à compléter.</i>')
+         + '</div>';
+    }
+  });
+  view.innerHTML = h;
+
+  const cible = famCible && familles.findIndex(f => f.nom === famCible);
+  if(cible > 0) $('#fam' + cible).scrollIntoView({ block:'start' });
+  else window.scrollTo(0, 0);
 }
 
-/** Un seul détail ouvert à la fois : sur un écran de téléphone, plusieurs
- *  descriptions dépliées noieraient la liste. Recliquer referme. */
+function tuileCycle(c, i, j){
+  const cle = i + '-' + j;
+  const actif = _cycleDetail === cle;
+  const st = c.statut === 'en cours' ? ' encours'
+           : c.statut === 'à venir'  ? ' avenir' : '';
+  return '<button type="button" class="cyc-tile' + st + (actif ? ' on' : '') + '"'
+       + ' onclick="ouvrirCycle(\'' + cle + '\')">'
+       + '<div class="cyc-tile-nom">' + esc(c.nom) + '</div>'
+       + '<div class="cyc-tile-duree">' + esc(c.duree) + '</div>'
+       + (c.statut === 'en cours' ? '<div class="cyc-tile-st vert">En cours</div>' : '')
+       + (c.statut === 'à venir'  ? '<div class="cyc-tile-st sable">À venir</div>' : '')
+       + '</button>';
+}
+
+/** Un seul détail ouvert à la fois : plusieurs descriptions dépliées
+ *  noieraient la liste sur un téléphone. Recliquer referme. */
 function ouvrirCycle(cle){
   _cycleDetail = (_cycleDetail === cle) ? null : cle;
-  renderCycles();
+  screenCycles();
 }
 
 /** Pour chaque discipline non-Kids, ouvre le fichier le plus récent, trouve le
@@ -1663,7 +1711,7 @@ function fmtDate(ms){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260903-0011';
+const BUILD = '20260903-1100';
 
 async function checkVersion(){
   try{
