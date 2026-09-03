@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260903-1920">
+<meta name="build" content="20260903-1951">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -120,7 +120,11 @@ input:focus{border-color:var(--orange)}
 
 /* ---------- Cycles thématiques (accueil, 2026-09-02) ---------- */
 .cyc{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);
-  padding:14px 16px;margin-bottom:10px}
+  padding:14px 16px;margin-bottom:10px;border-left:3px solid var(--c,var(--line))}
+.sect-routine{color:var(--cyan)}
+.sect-cycle{color:var(--orange2)}
+#routineSlot{--c:var(--cyan)}
+#cyclesSlot{--c:var(--orange)}
 .cyc-fam{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
   font-weight:700;margin-bottom:6px}
 .cyc-now{display:flex;align-items:baseline;flex-wrap:wrap}
@@ -547,11 +551,11 @@ function screenHome(){
   // volontairement compact (un cycle en cours par famille, le reste replié) —
   // « Aujourd'hui » reste l'information centrale de l'écran et ne doit pas
   // être repoussée hors de vue.
-  h += '<div class="section-title">Cycle CrossFit</div>'
-     + '<div id="cyclesSlot"><div class="spin"></div></div>';
-
-  h += '<div class="section-title">Routine</div>'
+  h += '<div class="section-title sect-routine">Routine</div>'
      + '<div id="routineSlot"><div class="spin"></div></div>';
+
+  h += '<div class="section-title sect-cycle">Cycle CrossFit</div>'
+     + '<div id="cyclesSlot"><div class="spin"></div></div>';
 
   h += '<div class="section-title">Aujourd\'hui</div>'
      + '<div id="todaySlot"><div class="spin"></div></div>';
@@ -1864,7 +1868,7 @@ function fmtDate(ms){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260903-1920';
+const BUILD = '20260903-1951';
 
 async function checkVersion(){
   try{
