@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260903-1100">
+<meta name="build" content="20260903-1117">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -127,6 +127,7 @@ input:focus{border-color:var(--orange)}
 .cyc-now>*+*{margin-left:8px}
 .cyc-nom{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.02em;color:var(--ink)}
 .cyc-duree{font-size:12px;color:var(--cyan)}
+.cyc-dates{font-size:12px;color:var(--muted);white-space:nowrap}
 .cyc-badge{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;
   color:#0f2417;background:#5fd08a;border:1px solid #7ee0a4;border-radius:7px;
   padding:3px 8px;white-space:nowrap}
@@ -567,7 +568,8 @@ function screenHome(){
    — un fichier à moitié rempli doit continuer d'afficher ce qui est valide.
    =========================================================================== */
 let _cyclesData = null;    // familles parsées, gardées entre les écrans
-let _cycleDetail = null;   // clé « famille-cycle » du cycle déplié (page complète)
+let _cycleDetail = null;   // clé « famille-cycle » du cycle déplié
+let _cycleFamille = null;  // famille affichée sur la page, conservée entre re-rendus
 
 function parseCycles(md){
   // On retire les blocs de code : le fichier contient un exemple de format
@@ -579,10 +581,12 @@ function parseCycles(md){
     const mFam = l.match(/^##\s+(.+?)\s*$/);
     if(mFam){ fam = { nom: mFam[1].replace(/^Cycle\s+/i, ''), cycles: [] }; familles.push(fam); return; }
     if(!fam) return;
-    const mCyc = l.match(/^###\s+(.+?)\s+·\s+(.+?)\s+·\s+(.+?)\s*$/);
+    // « ### Nom · durée · statut » avec un 4e champ facultatif : les dates.
+    const mCyc = l.match(/^###\s+(.+?)\s+·\s+(.+?)\s+·\s+([^·]+?)(?:\s+·\s+(.+?))?\s*$/);
     if(mCyc){
       fam.cycles.push({ nom: mCyc[1], duree: mCyc[2],
-                        statut: mCyc[3].toLowerCase().trim(), desc: [] });
+                        statut: mCyc[3].toLowerCase().trim(),
+                        dates: (mCyc[4] || '').trim(), desc: [] });
       return;
     }
     const dernier = fam.cycles[fam.cycles.length - 1];
@@ -628,7 +632,9 @@ function carteCycle(f, i){
     enCours.forEach(c => {
       h += '<div class="cyc-now"><span class="cyc-nom">' + esc(c.nom) + '</span>'
          + '<span class="cyc-duree">' + esc(c.duree) + '</span>'
-         + '<span class="cyc-badge">En cours</span></div>';
+         + '<span class="cyc-badge">En cours</span>'
+         + (c.dates ? '<span class="cyc-dates">' + esc(c.dates) + '</span>' : '')
+         + '</div>';
       if(c.desc.length) h += '<div class="cyc-desc">' + inline(c.desc.join(' ')) + '</div>';
     });
   } else {
@@ -653,19 +659,21 @@ function carteCycle(f, i){
 }
 
 /* ---------------------------------------------------------------------------
-   PAGE COMPLÈTE — tous les cycles, toutes familles, en tuiles.
-   Ouverte depuis la tuile « Cycles passés » d'une famille : on fait défiler
-   jusqu'à cette famille, mais la page les montre toutes, pour qu'un coach
-   puisse parcourir l'ensemble sans revenir en arrière.
+   PAGE D'UNE FAMILLE — ses cycles, en tuiles.
+   J'avais d'abord affiché les trois familles d'un coup ; Ron a tranché
+   (2026-09-03) : cliquer sur « Cycles passés » de Gymnastics ne doit montrer
+   que Gymnastics. C'est plus court à parcourir et sans ambiguïté sur ce qu'on
+   regarde. Sans famille précisée, on retombe sur tout (lien direct, retour).
    --------------------------------------------------------------------------- */
 const CYC_ORDRE = { 'en cours': 0, 'à venir': 1, 'passé': 2 };
 
-async function screenCycles(famCible){
+async function screenCycles(famCible, interne){
   S.disc = S.file = null;
-  // Entrée depuis l'accueil (une famille est visée) : on repart d'une page
-  // propre. Sans ça, la description ouverte lors d'une visite précédente
-  // rouvrait toute seule, loin de la famille qu'on venait de demander.
-  if(famCible) _cycleDetail = null;
+  // Entrée depuis l'accueil : on repart d'une page propre. Sans ça, la
+  // description ouverte lors d'une visite précédente rouvrait toute seule.
+  // Les re-rendus internes (ouvrir/fermer une tuile) passent `interne`.
+  if(!interne) _cycleDetail = null;
+  _cycleFamille = famCible || null;
   view.innerHTML = '<button class="back" onclick="screenHome()">‹ Accueil</button>'
                  + '<div class="spin"></div>';
   let familles;
@@ -678,7 +686,9 @@ async function screenCycles(famCible){
   }
 
   let h = '<button class="back" onclick="screenHome()">‹ Accueil</button>';
-  familles.forEach((f, i) => {
+  const vues = famCible ? familles.filter(f => f.nom === famCible) : familles;
+  vues.forEach(f => {
+    const i = familles.indexOf(f);
     h += '<div class="section-title" id="fam' + i + '">' + esc(f.nom) + '</div>'
        + '<div class="cyc-tiles">'
        + f.cycles.slice().sort((a, b) =>
@@ -696,9 +706,7 @@ async function screenCycles(famCible){
   });
   view.innerHTML = h;
 
-  const cible = famCible && familles.findIndex(f => f.nom === famCible);
-  if(cible > 0) $('#fam' + cible).scrollIntoView({ block:'start' });
-  else window.scrollTo(0, 0);
+  window.scrollTo(0, 0);
 }
 
 function tuileCycle(c, i, j){
@@ -719,7 +727,7 @@ function tuileCycle(c, i, j){
  *  noieraient la liste sur un téléphone. Recliquer referme. */
 function ouvrirCycle(cle){
   _cycleDetail = (_cycleDetail === cle) ? null : cle;
-  screenCycles();
+  screenCycles(_cycleFamille, true);
 }
 
 /** Pour chaque discipline non-Kids, ouvre le fichier le plus récent, trouve le
@@ -1711,7 +1719,7 @@ function fmtDate(ms){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260903-1100';
+const BUILD = '20260903-1117';
 
 async function checkVersion(){
   try{
