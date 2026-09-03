@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260903-1117">
+<meta name="build" content="20260903-1920">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -550,12 +550,16 @@ function screenHome(){
   h += '<div class="section-title">Cycle CrossFit</div>'
      + '<div id="cyclesSlot"><div class="spin"></div></div>';
 
+  h += '<div class="section-title">Routine</div>'
+     + '<div id="routineSlot"><div class="spin"></div></div>';
+
   h += '<div class="section-title">Aujourd\'hui</div>'
      + '<div id="todaySlot"><div class="spin"></div></div>';
 
   view.innerHTML = h;
   window.scrollTo(0,0);
   renderCycles();
+  renderRoutines();
   renderTodaySection();
 }
 
@@ -568,6 +572,8 @@ function screenHome(){
    — un fichier à moitié rempli doit continuer d'afficher ce qui est valide.
    =========================================================================== */
 let _cyclesData = null;    // familles parsées, gardées entre les écrans
+let _routinesData = null;  // routines mensuelles parsées
+let _routineDetail = null; // rang de la routine dépliée sur sa page
 let _cycleDetail = null;   // clé « famille-cycle » du cycle déplié
 let _cycleFamille = null;  // famille affichée sur la page, conservée entre re-rendus
 
@@ -597,12 +603,66 @@ function parseCycles(md){
   return familles.filter(f => f.cycles.length);
 }
 
+async function chargerDoc(nom){
+  const res = await api({ action:'doc', doc:nom, token:S.token });
+  if(!res.ok) throw new Error(res.error || 'Erreur serveur');
+  return res.content || '';
+}
+
 async function chargerCycles(){
   if(_cyclesData) return _cyclesData;
-  const res = await api({ action:'cycles', token:S.token });
-  if(!res.ok) throw new Error(res.error || 'Erreur serveur');
-  _cyclesData = parseCycles(res.content);
+  _cyclesData = parseCycles(await chargerDoc('cycles'));
   return _cyclesData;
+}
+
+/* ---------------------------------------------------------------------------
+   ROUTINES MENSUELLES (2026-09-03) — même principe que les cycles, une entrée
+   par mois. Le statut n'est PAS saisi : il se déduit du mois par rapport à la
+   date du jour. Une routine par mois, douze par an — demander à Ron de basculer
+   un statut à la main chaque mois, c'était garantir qu'il soit un jour faux.
+   Un statut explicite en 2e champ reste possible pour forcer un cas
+   particulier (routine prolongée).
+   --------------------------------------------------------------------------- */
+const MOIS_FR = ['janvier','février','mars','avril','mai','juin',
+                 'juillet','août','septembre','octobre','novembre','décembre'];
+
+/** Comparaison des mois sans accents ni casse : Ron saisit ces lignes à la
+ *  main et écrit aussi bien « Août » que « aout » ou « fevrier ». Refuser une
+ *  routine pour un accent manquant serait absurde. */
+function moisIndex(nom){
+  const norm = t => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return MOIS_FR.map(norm).indexOf(norm(nom));
+}
+
+function parseRoutines(md){
+  const texte = (md || '').replace(/```[\s\S]*?```/g, '');
+  const out = [];
+  texte.split(/\r?\n/).forEach(l => {
+    const m = l.match(/^###\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})\s*(?:·\s*(.+?))?\s*$/);
+    if(m){
+      const idx = moisIndex(m[1]);
+      if(idx < 0) return;                       // mois non reconnu : ligne ignorée
+      out.push({ mois: m[1], annee: +m[2], rang: +m[2] * 12 + idx,
+                 libelle: m[1] + ' ' + m[2],
+                 statutForce: (m[3] || '').toLowerCase().trim(), desc: [] });
+      return;
+    }
+    const d = out[out.length - 1];
+    if(d && l.trim() && !/^#{1,6}\s/.test(l) && !/^-{3,}$/.test(l.trim())) d.desc.push(l.trim());
+  });
+  const now = new Date();
+  const rangJour = now.getFullYear() * 12 + now.getMonth();
+  out.forEach(r => {
+    r.statut = r.statutForce ||
+      (r.rang === rangJour ? 'en cours' : (r.rang < rangJour ? 'passé' : 'à venir'));
+  });
+  return out.sort((a, b) => b.rang - a.rang);   // la plus récente en tête
+}
+
+async function chargerRoutines(){
+  if(_routinesData) return _routinesData;
+  _routinesData = parseRoutines(await chargerDoc('routines'));
+  return _routinesData;
 }
 
 async function renderCycles(){
@@ -721,6 +781,91 @@ function tuileCycle(c, i, j){
        + (c.statut === 'en cours' ? '<div class="cyc-tile-st vert">En cours</div>' : '')
        + (c.statut === 'à venir'  ? '<div class="cyc-tile-st sable">À venir</div>' : '')
        + '</button>';
+}
+
+/* ---------------------------------------------------------------------------
+   BLOC ROUTINE — accueil, sous « Cycle CrossFit ».
+   --------------------------------------------------------------------------- */
+async function renderRoutines(){
+  const slot = $('#routineSlot');
+  if(!slot) return;
+  let routines;
+  try{
+    routines = await chargerRoutines();
+  }catch(err){
+    slot.innerHTML = '<div class="cyc"><div class="cyc-vide">Routines indisponibles pour le moment.</div></div>';
+    return;
+  }
+  if(!routines.length){ slot.innerHTML = ''; slot.previousElementSibling.remove(); return; }
+
+  const enCours = routines.filter(r => r.statut === 'en cours');
+  const aVenir  = routines.filter(r => r.statut === 'à venir').slice(-1);   // la plus proche
+  const passees = routines.filter(r => r.statut === 'passé');
+
+  let h = '<div class="cyc">';
+  if(enCours.length){
+    enCours.forEach(r => {
+      h += '<div class="cyc-now"><span class="cyc-nom">' + esc(r.libelle) + '</span>'
+         + '<span class="cyc-badge">En cours</span></div>';
+      if(r.desc.length) h += '<div class="cyc-desc">' + inline(r.desc.join(' ')) + '</div>';
+    });
+  } else {
+    // Cas réel aujourd'hui : le fichier s'arrête en avril alors qu'on est en
+    // septembre. On le dit, plutôt que d'afficher un bloc vide inexplicable.
+    h += '<div class="cyc-vide">Aucune routine pour le mois en cours.</div>';
+  }
+  if(aVenir.length){
+    h += '<div class="cyc-suite">Ensuite : <b>' + esc(aVenir[0].libelle) + '</b></div>';
+  }
+  if(passees.length){
+    h += '<button type="button" class="cyc-tile cyc-tile-acces" onclick="screenRoutines()">'
+       + '<div class="cyc-tile-nom">Routines passées</div>'
+       + '<div class="cyc-tile-duree">' + passees.length + ' routine'
+       + (passees.length > 1 ? 's' : '') + ' · voir le détail ›</div></button>';
+  }
+  slot.innerHTML = h + '</div>';
+}
+
+async function screenRoutines(interne){
+  S.disc = S.file = null;
+  if(!interne) _routineDetail = null;
+  view.innerHTML = '<button class="back" onclick="screenHome()">‹ Accueil</button>'
+                 + '<div class="spin"></div>';
+  let routines;
+  try{
+    routines = await chargerRoutines();
+  }catch(err){
+    view.innerHTML = '<button class="back" onclick="screenHome()">‹ Accueil</button>'
+                   + errorBox('Impossible de charger les routines.', 'screenRoutines()');
+    return;
+  }
+  let h = '<button class="back" onclick="screenHome()">‹ Accueil</button>'
+        + '<div class="section-title">Routine</div><div class="cyc-tiles">'
+        + routines.map(r => {
+            const st = r.statut === 'en cours' ? ' encours'
+                     : r.statut === 'à venir'  ? ' avenir' : '';
+            return '<button type="button" class="cyc-tile' + st
+                 + (_routineDetail === r.rang ? ' on' : '') + '"'
+                 + ' onclick="ouvrirRoutine(' + r.rang + ')">'
+                 + '<div class="cyc-tile-nom">' + esc(r.libelle) + '</div>'
+                 + (r.statut === 'en cours' ? '<div class="cyc-tile-st vert">En cours</div>' : '')
+                 + (r.statut === 'à venir'  ? '<div class="cyc-tile-st sable">À venir</div>' : '')
+                 + '</button>';
+          }).join('')
+        + '</div>';
+  const choisi = routines.find(r => r.rang === _routineDetail);
+  if(choisi){
+    h += '<div class="cyc-detail"><b>' + esc(choisi.libelle) + '</b>'
+       + (choisi.desc.length ? '<br>' + inline(choisi.desc.join(' '))
+                             : '<br><i>Description à compléter.</i>') + '</div>';
+  }
+  view.innerHTML = h;
+  window.scrollTo(0, 0);
+}
+
+function ouvrirRoutine(rang){
+  _routineDetail = (_routineDetail === rang) ? null : rang;
+  screenRoutines(true);
 }
 
 /** Un seul détail ouvert à la fois : plusieurs descriptions dépliées
@@ -1719,7 +1864,7 @@ function fmtDate(ms){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260903-1117';
+const BUILD = '20260903-1920';
 
 async function checkVersion(){
   try{
