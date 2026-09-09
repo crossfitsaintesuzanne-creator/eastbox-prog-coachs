@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260909-1215">
+<meta name="build" content="20260909-1434">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -213,6 +213,12 @@ input:focus{border-color:var(--orange)}
 .wtxt em{color:var(--cyan-light);font-style:italic;font-weight:400;opacity:.9}
 .wlbl{font-size:.5em;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin:.35em 0 .18em}
 .wcard > .wlbl:first-child{margin-top:0}
+/* Détail des séances Pré-Kids / Kids / Teens (2026-09-09) : contrairement à un
+   WOD, le texte long EST le contenu — c'est le déroulé que le coach anime. Il
+   s'affiche donc en toutes lettres, en casse normale et sur plusieurs lignes. */
+.wdet{font-size:.5em;line-height:1.4;color:var(--ink);padding:.1em 0;white-space:normal}
+.wdet+.wdet{margin-top:.3em}
+.wdet strong,.wdet b{color:var(--cyan)}
 </style>
 </head>
 <body>
@@ -409,7 +415,151 @@ function pickSlide(i){
  *  autres restent sur le repli générique, pas encore validées pour le mur
  *  de salle. Liste à élargir ici quand une nouvelle discipline sera prête,
  *  rien d'autre à toucher. */
-const TV_DISCIPLINES = ['crossfit', 'hyrox'];
+const TV_DISCIPLINES = ['crossfit', 'hyrox', 'kids'];
+
+/* ===========================================================================
+   PRÉ-KIDS / KIDS / TEENS SUR L'ÉCRAN TV (2026-09-09, demande de Ron)
+
+   Ces fichiers ne suivent PAS le format WOD (voir NOMENCLATURE_MD.md §12) :
+   un fichier par BLOC de 4 semaines, trois groupes d'âge repérés par un
+   emoji en tête de `# `, des séances datées en toutes lettres
+   (« Mercredi 9 septembre 2026 ») et un tableau | Bloc | Durée | Détail |.
+   Le chemin générique ne sait pas les lire — d'où ce chemin dédié.
+
+   Les parseurs sont ceux d'index.html, portés tels quels : même format lu
+   par les deux applis, une seule spécification à faire évoluer.
+
+   On commence par Pré-Kids seul (demande de Ron). Ajouter Kids et Teens =
+   décommenter leur ligne ici, rien d'autre à toucher.
+   =========================================================================== */
+const KIDS_GROUPES_TV = [
+  { cle:'PRE-KIDS', key:'prekids', label:'Pré-Kids', color:'#6ec06e' }
+  // { cle:'KIDS',  key:'kidstv',  label:'Kids',   color:'#e8c15a' },
+  // { cle:'TEENS', key:'teenstv', label:'Teens',  color:'#5aa3e8' }
+];
+
+const KIDS_MOIS = {janvier:0,'février':1,fevrier:1,mars:2,avril:3,mai:4,juin:5,juillet:6,
+  'août':7,aout:7,septembre:8,octobre:9,novembre:10,'décembre':11,decembre:11};
+
+function kidsParseDateFR(s){
+  const m = s.match(/(\d{1,2})(?:er)?\s+(janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)\s+(\d{4})/i);
+  if(!m) return null;
+  return new Date(parseInt(m[3],10), KIDS_MOIS[m[2].toLowerCase()], parseInt(m[1],10));
+}
+
+function kidsParseTable(lines){
+  const rows = []; let inTable = false;
+  lines.forEach(raw => {
+    const l = raw.trim();
+    if(!/^\|/.test(l)) return;
+    if(/^\|\s*-+/.test(l)) return;
+    if(/^\|\s*Bloc\s*\|/i.test(l)){ inTable = true; return; }
+    if(!inTable) return;
+    const cells = l.replace(/^\|/,'').replace(/\|$/,'').split('|').map(c => c.trim());
+    if(cells.length >= 3) rows.push({ label: cells[0].replace(/\*\*/g,''), duree: cells[1], detail: cells[2] });
+  });
+  return rows;
+}
+
+/** Séances d'un groupe d'âge dans un fichier de bloc. Une séance = un titre
+ *  daté + son tableau. Pré-Kids date sur la ligne `## SEMAINE`, Kids/Teens
+ *  sur `### Séance N.M` (§12). */
+function kidsSeancesDuGroupe(texte, cleGroupe){
+  const EMOJI = { 'PRE-KIDS':'🟢', 'KIDS':'🟡', 'TEENS':'🔵' };
+  const emoji = EMOJI[cleGroupe];
+  const lines = String(texte || '').replace(/\r\n?/g,'\n').split('\n');
+
+  const h1 = [];
+  lines.forEach((l,i) => { if(/^#\s+/.test(l.trim())) h1.push(i); });
+  let debut = -1;
+  for(let k = 0; k < h1.length; k++){
+    if(lines[h1[k]].indexOf(emoji) !== -1){ debut = h1[k]; break; }
+  }
+  if(debut < 0) return [];
+  let fin = lines.length;
+  for(let k = 0; k < h1.length; k++){ if(h1[k] > debut){ fin = h1[k]; break; } }
+
+  const corps = lines.slice(debut + 1, fin);
+  const idxSem = [];
+  corps.forEach((l,i) => { if(/^##\s+SEMAINE/i.test(l.trim())) idxSem.push(i); });
+
+  const out = [];
+  idxSem.forEach((wi, k) => {
+    const end = k + 1 < idxSem.length ? idxSem[k+1] : corps.length;
+    const titreSem = corps[wi].trim().replace(/^##\s+/,'');
+    const dateSem = kidsParseDateFR(titreSem);
+    const corpsSem = corps.slice(wi + 1, end);
+
+    const idxSeance = [];
+    corpsSem.forEach((l,i) => { if(/^###\s+/.test(l.trim())) idxSeance.push(i); });
+
+    if(idxSeance.length){
+      idxSeance.forEach((si, j) => {
+        const send = j + 1 < idxSeance.length ? idxSeance[j+1] : corpsSem.length;
+        const titre = corpsSem[si].trim().replace(/^###\s+/,'');
+        out.push({ titre: titre, date: kidsParseDateFR(titre) || dateSem,
+                   rows: kidsParseTable(corpsSem.slice(si + 1, send)) });
+      });
+    } else {
+      out.push({ titre: titreSem, date: dateSem, rows: kidsParseTable(corpsSem) });
+    }
+  });
+  return out;
+}
+
+/** Le titre d'une séance Kids est verbeux : « SEMAINE 19 — Mercredi 9
+ *  septembre 2026 — "Le grand parcours d'aventure" ». Sur le mur, seul le
+ *  thème entre guillemets a de la valeur — la date est déjà en haut d'écran. */
+function kidsTheme(titre){
+  const m = titre.match(/[«"“]\s*([^»"”]+?)\s*[»"”]/);
+  if(m) return m[1].trim();
+  const bouts = titre.split(/\s+—\s+|\s+-\s+/);
+  return bouts.length > 2 ? bouts[bouts.length - 1].trim() : '';
+}
+
+/** Transforme le tableau de la séance en markdown de blocs, celui que
+ *  renderWodSection() sait déjà mettre en colonnes et redimensionner. On ne
+ *  réinvente aucun rendu. */
+function kidsSeanceEnMarkdown(seance){
+  let md = '## ' + seance.titre + '\n';   // ligne mangée par renderSlide, sert de garde
+  seance.rows.forEach(r => {
+    const duree = r.duree ? ' - ' + r.duree : '';
+    md += '\n#### ' + r.label + duree + '\n' + r.detail + '\n';
+  });
+  return md;
+}
+
+/** Une carte par groupe d'âge ayant une séance AUJOURD'HUI. Rien aujourd'hui
+ *  = pas de pastille, exactement comme une discipline sans séance du jour. */
+function loadKidsCards(items, now, lire){
+  const cartes = [];
+  const promesses = items.map(it => lire(it));
+  return Promise.all(promesses).then(contenus => {
+    KIDS_GROUPES_TV.forEach(g => {
+      let trouvee = null, source = null;
+      contenus.forEach((txt, i) => {
+        if(trouvee || !txt) return;
+        const seances = kidsSeancesDuGroupe(txt, g.cle);
+        for(let k = 0; k < seances.length; k++){
+          const s = seances[k];
+          if(s.date && sameCalendarDay(s.date, now) && s.rows.length){
+            trouvee = s; source = items[i]; break;
+          }
+        }
+      });
+      if(!trouvee) return;
+      const theme = kidsTheme(trouvee.titre);
+      cartes.push({
+        disc:  { key:g.key, label:g.label, color:g.color },
+        item:  source,
+        days:  [{ label:g.label, date:trouvee.date, body:kidsSeanceEnMarkdown(trouvee) }],
+        idx:   0,
+        label: theme ? g.label + ' · ' + theme : g.label
+      });
+    });
+    return cartes;
+  });
+}
 
 async function computeTodayCards(){
   const discs = S.user.access.filter(a => TV_DISCIPLINES.includes(a.key));
@@ -424,6 +574,29 @@ async function computeTodayCards(){
   for(const d of discs){
     const list = S.items.filter(i => i.discipline === d.key);
     if(!list.length) continue;
+
+    // Pré-Kids / Kids / Teens : format à part (§12), chemin à part — et
+    // plusieurs pastilles possibles pour une seule discipline, une par
+    // groupe d'âge ayant une séance aujourd'hui.
+    if(d.key === 'kids'){
+      try{
+        const lire = async it => {
+          if(S.todayCache[it.id] !== undefined) return S.todayCache[it.id];
+          const r = await api({ action:'file', token:S.token, id:it.id });
+          if(!r.ok) throw new Error(r.error || 'Fichier illisible');
+          if(r.content) S.todayCache[it.id] = r.content;
+          return r.content;
+        };
+        const kc = await loadKidsCards(list, now, lire);
+        kc.forEach(c => cards.push(c));
+      }catch(e){
+        echecs.push(d.label);
+        if(!echecs.raison) echecs.raison = String((e && e.message) || e);
+        console.warn('Kids illisible', e);
+      }
+      continue;
+    }
+
     // Une discipline dont le fichier est illisible ne doit pas faire tomber
     // les autres : on la saute, l'écran affiche ce qui reste.
     let card = null;
@@ -746,7 +919,22 @@ function classifyDayCrossfit(tags){
   });
 }
 
-const DISPLAY_RULES = { crossfit: classifyDayCrossfit };
+/** Pré-Kids : préparation à gauche (whiteboard, skill, échauffement), séance
+ *  à droite (workout, jeu, retour au calme). Coupure naturelle du déroulé —
+ *  et si les libellés changent un jour, on retombe sur un partage en deux
+ *  moitiés plutôt que sur une colonne unique illisible. */
+function classifyDayKids(tags){
+  const prep = t => /whiteboard|skill|warm.?up|échauff|echauff/i.test(t);
+  const aGauche = tags.filter(prep).length;
+  if(aGauche && aGauche < tags.length) return tags.map(t => prep(t) ? 'left' : 'right');
+  const moitie = Math.ceil(tags.length / 2);
+  return tags.map((t, i) => i < moitie ? 'left' : 'right');
+}
+
+const DISPLAY_RULES = {
+  crossfit: classifyDayCrossfit,
+  prekids:  classifyDayKids
+};
 
 /** Blocs jamais affichés sur l'écran TV pour certaines disciplines (demande
  *  de Ron, 2026-08-25 : Hyrox n'affiche que la Conditioning, pas le Warm-up —
@@ -809,7 +997,8 @@ function renderWodSection(bodyMd, disc){
   const classify = disc && DISPLAY_RULES[disc.key];
   const tags = colonnes.map(s => splitHeading(s.heading).tag);
   const buckets = classify ? classify(tags) : tags.map((_, idx) => idx === total - 1 ? 'right' : 'left');
-  const blocks = colonnes.map((s, idx) => ({ bucket: buckets[idx], html: renderWodBlock(s, idx, total) }));
+  const opts = { detail: !!(disc && KIDS_GROUPES_TV.some(g => g.key === disc.key)) };
+  const blocks = colonnes.map((s, idx) => ({ bucket: buckets[idx], html: renderWodBlock(s, idx, total, opts) }));
   const left  = blocks.filter(b => b.bucket === 'left').map(b => b.html).join('');
   const right = blocks.filter(b => b.bucket === 'right').map(b => b.html).join('');
   const has2col = left && right;
@@ -839,7 +1028,7 @@ function texteBandeau(sections){
   return bouts.join(' &middot; ');
 }
 
-function renderWodBlock(sec, idx, total){
+function renderWodBlock(sec, idx, total, opts){
   const { tag, title } = splitHeading(sec.heading);
   const tagcls = idx === 0 ? 'a' : (idx === total - 1 ? 'c' : 'b');
   let body = '';
@@ -873,7 +1062,14 @@ function renderWodBlock(sec, idx, total){
     const boldOnly = t.match(/^\*\*(.+)\*\*$/);
     const clean = stripLinks(italicOnly ? italicOnly[1] : (boldOnly ? boldOnly[1] : t));
 
-    if(clean.length > 40) return;           // long texte explicatif : ignoré
+    // Sur un WOD, une ligne longue est un commentaire de coach : on l'ignore,
+    // elle parasite la lecture de loin. Sur une séance Kids, c'est l'inverse —
+    // la colonne « Détail » du tableau EST la séance. D'où l'option.
+    if(opts && opts.detail){
+      body += '<div class="wdet">'+inline(clean)+'</div>';   // court ou long : même rendu
+      return;
+    }
+    if(clean.length > 40) return;
     // inline() et non esc() : une ligne partiellement en gras/italique
     // (« **AMRAP 5'** — 2-4-6-8-10… ») affichait ses astérisques en clair sur
     // l'écran de la salle (repéré 2026-08-30). Les cas « toute la ligne en
@@ -1067,7 +1263,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260909-1215';
+const BUILD = '20260909-1434';
 
 async function checkVersion(){
   try{
