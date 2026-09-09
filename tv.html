@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260902-1552">
+<meta name="build" content="20260909-1215">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -124,6 +124,35 @@ input:focus{border-color:var(--orange)}
 .wod-grid.has-2col>.wod-col+.wod-col{margin-top:0;margin-left:2.2em;flex:1.15 1 0%}
 .wod-col{min-width:0;min-height:0;overflow:hidden;flex:1 1 0%}
 
+/* ---------- Bandeau « Routine » défilant (2026-09-09, demande de Ron) ------
+   Le bloc Routine du jour quitte les colonnes et défile en bas d'écran, comme
+   le bandeau d'un journal télévisé. Boucle sans couture : le texte est écrit
+   DEUX fois dans la piste, qu'on translate de -50% — soit exactement une
+   copie. Rien de plus récent que CSS3, préfixes -webkit- inclus : le
+   navigateur du boîtier est ancien (voir SYNTHÈSE n°108 et n°110). */
+.tv-ticker{
+  flex:0 0 auto;position:relative;z-index:1;margin-top:14px;
+  display:flex;align-items:stretch;
+  background:rgba(0,0,0,.30);border:1px solid var(--line);border-radius:12px;
+  overflow:hidden;
+}
+.tv-ticker-lbl{
+  flex:0 0 auto;display:flex;align-items:center;padding:0 20px;
+  background:var(--c,var(--orange));color:#10192b;
+  font-family:'Bebas Neue',sans-serif;letter-spacing:.12em;text-transform:uppercase;
+  font-size:26px;line-height:1;
+}
+.tv-ticker-mask{flex:1;min-width:0;overflow:hidden;padding:13px 0}
+.tv-ticker-track{
+  display:inline-block;white-space:nowrap;
+  -webkit-animation:tvdefile 30s linear infinite;
+          animation:tvdefile 30s linear infinite;
+}
+.tv-ticker-part{display:inline-block;padding:0 2.5em;font-size:30px}
+.tv-ticker-part b{color:var(--c,var(--orange));font-weight:800;letter-spacing:.04em}
+@-webkit-keyframes tvdefile{from{-webkit-transform:translateX(0)}to{-webkit-transform:translateX(-50%)}}
+@keyframes tvdefile{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
 /* ---------- Écran vertical (2026-08-30, demande de Ron) ----------
    Le même fichier sert les deux orientations : un seul upload, une seule
    session, une seule version. Rien à changer côté serveur.
@@ -150,6 +179,8 @@ input:focus{border-color:var(--orange)}
   .tv-head{margin-bottom:14px}
   .tv-head>*+*{margin-left:14px}
   .tv-slide-top{margin-bottom:14px}
+  .tv-ticker-lbl{font-size:22px;padding:0 15px}
+  .tv-ticker-part{font-size:26px}
 }
 /* Volontairement pas étiré (contrairement à .wod-col, qui l'est par la
    grille) : sa hauteur naturelle sert de mesure « contenu réel » à fitOne(),
@@ -502,12 +533,28 @@ function renderSlide(){
   const day = c.days[c.idx];
   const body = day.body.replace(/^##[^\n]*\n?/, '');
 
+  const rendu = renderWodSection(body, c.disc);
+
   h += '<div class="tv-slide" style="--c:'+c.disc.color+'">'
      + '<div class="tv-slide-top">'
      + '<span class="tv-pill" style="--c:'+c.disc.color+'">'+esc(c.label)+'</span>'
      + '</div>'
-     + '<div class="tv-slide-body" id="tvBody">'+renderWodSection(body, c.disc)+'</div>'
-     + '</div></div>';
+     + '<div class="tv-slide-body" id="tvBody">'+rendu.html+'</div>'
+     + '</div>';
+
+  // Bandeau défilant : frère de .tv-slide dans la colonne flex, donc il PREND
+  // sa hauteur sur la séance. fitColumns() mesure ensuite ce qui reste et
+  // s'adapte tout seul — rien à recalculer à la main.
+  if(rendu.ticker){
+    h += '<div class="tv-ticker" style="--c:'+c.disc.color+'">'
+       + '<div class="tv-ticker-lbl">Routine</div>'
+       + '<div class="tv-ticker-mask"><div class="tv-ticker-track" id="tvTicker">'
+       + '<span class="tv-ticker-part">'+rendu.ticker+'</span>'
+       + '<span class="tv-ticker-part">'+rendu.ticker+'</span>'
+       + '</div></div></div>';
+  }
+
+  h += '</div>';
   $('#tv').innerHTML = h;
   // Taper n'importe où sur la séance = passer à la suivante à la main (même
   // règle que les points : ça arrête la rotation automatique).
@@ -524,10 +571,37 @@ function renderSlide(){
   // le premier arrivé fait le travail, l'autre ne fait rien.
   document.fonts.ready.then(() => {
     let fait = false;
-    const lancer = () => { if(fait) return; fait = true; fitColumns(); tracerGeometrie(); };
+    const lancer = () => { if(fait) return; fait = true; fitColumns(); reglerBandeau(); tracerGeometrie(); };
     requestAnimationFrame(lancer);
     setTimeout(lancer, 120);
   });
+}
+
+/** Vitesse de défilement constante quelle que soit la longueur du texte :
+ *  la durée est calculée depuis la largeur réelle d'UNE copie (la piste en
+ *  contient deux). Sans ça, une routine d'une ligne filerait et une routine
+ *  de cinq ramperait. ~95 px/seconde, lisible de loin sans être hypnotique. */
+function reglerBandeau(){
+  const t = document.getElementById('tvTicker');
+  if(!t) return;
+  let largeurCopie = t.scrollWidth / 2;
+  if(!largeurCopie) return;                       // rien à mesurer, on laisse le défaut CSS
+
+  // Une routine d'une ligne est plus courte que l'écran : avec seulement 2
+  // copies, le bandeau montrerait un long trou avant de reboucler. On répète
+  // le texte jusqu'à couvrir la largeur, en gardant un nombre PAIR de copies
+  // — c'est ce qui fait que -50% retombe pile sur une couture.
+  const largeurVisible = t.parentNode ? t.parentNode.clientWidth : 0;
+  if(largeurVisible && largeurCopie < largeurVisible){
+    const n = Math.ceil(largeurVisible / largeurCopie);
+    const modele = t.children[0];   // pas firstChild : robuste si du blanc s'invite un jour
+    for(let i = 0; i < (2 * n) - 2; i++) t.appendChild(modele.cloneNode(true));
+    largeurCopie = t.scrollWidth / 2;
+  }
+
+  const sec = Math.max(14, Math.round(largeurCopie / 95));
+  t.style.webkitAnimationDuration = sec + 's';
+  t.style.animationDuration = sec + 's';
 }
 
 /** Réduit le font-size du conteneur (tout est en em à l'intérieur, voir CSS
@@ -678,8 +752,17 @@ const DISPLAY_RULES = { crossfit: classifyDayCrossfit };
  *  de Ron, 2026-08-25 : Hyrox n'affiche que la Conditioning, pas le Warm-up —
  *  la page NST regroupe les 2 mais seule la Conditioning intéresse le mur TV). */
 const HIDDEN_SECTIONS = {
-  hyrox: [/warm.?up/i]
+  hyrox:    [/warm.?up/i],
+  // 2026-09-09, demande de Ron : le mur de la salle n'affiche plus l'échauffement
+  // CrossFit non plus. Il reste dans le .md — c'est un choix d'AFFICHAGE, pas une
+  // suppression de contenu : l'appli coach et les affiches le montrent toujours.
+  crossfit: [/warm.?up/i]
 };
+
+/** Blocs sortis des colonnes pour aller dans le bandeau défilant du bas
+ *  (2026-09-09). Aujourd'hui la Routine du jour, qui est courte et se lit
+ *  très bien en défilement. */
+const TICKER_SECTIONS = [/routine/i];
 
 /** Blocs jamais affichés, toutes disciplines confondues : pure commentaire
  *  de coach (ex. Gymnastics a des blocs entiers « Message du coach » /
@@ -688,6 +771,8 @@ const HIDDEN_SECTIONS = {
  *  du 2026-08-25, mais au niveau du bloc entier plutôt que de la ligne. */
 const ALWAYS_HIDDEN_SECTIONS = [/coaching tip/i, /message du coach/i, /note coach/i];
 
+/** Renvoie { html, ticker } : le HTML des colonnes, et le texte du bandeau
+ *  défilant (chaîne vide s'il n'y a pas de bloc à y mettre). */
 function renderWodSection(bodyMd, disc){
   const lines = bodyMd.split(/\r?\n/);
   const sections = [];
@@ -701,28 +786,57 @@ function renderWodSection(bodyMd, disc){
     }
     if(cur) cur.lines.push(raw);
   });
-  if(!sections.length) return '<div class="doc-fallback">'+md(bodyMd)+'</div>';
+  if(!sections.length) return { html:'<div class="doc-fallback">'+md(bodyMd)+'</div>', ticker:'' };
 
   const hidden = (disc && HIDDEN_SECTIONS[disc.key]) || [];
   const visible = sections.filter(s => {
     const tag = splitHeading(s.heading).tag;
     return !ALWAYS_HIDDEN_SECTIONS.some(re => re.test(tag)) && !hidden.some(re => re.test(tag));
   });
-  if(!visible.length) return '<div class="doc-fallback">'+md(bodyMd)+'</div>';
+  if(!visible.length) return { html:'<div class="doc-fallback">'+md(bodyMd)+'</div>', ticker:'' };
 
-  const total = visible.length;
+  // Le(s) bloc(s) du bandeau sortent des colonnes. Filet : s'il ne restait
+  // QUE ça, on garde tout dans les colonnes plutôt que d'afficher un écran
+  // vide surmonté d'un bandeau — une séance invisible est le pire échec.
+  const pourBandeau = visible.filter(s =>
+    TICKER_SECTIONS.some(re => re.test(splitHeading(s.heading).tag)));
+  const colonnes = pourBandeau.length && pourBandeau.length < visible.length
+    ? visible.filter(s => pourBandeau.indexOf(s) === -1)
+    : visible;
+  const ticker = (colonnes === visible) ? '' : texteBandeau(pourBandeau);
+
+  const total = colonnes.length;
   const classify = disc && DISPLAY_RULES[disc.key];
-  const tags = visible.map(s => splitHeading(s.heading).tag);
+  const tags = colonnes.map(s => splitHeading(s.heading).tag);
   const buckets = classify ? classify(tags) : tags.map((_, idx) => idx === total - 1 ? 'right' : 'left');
-  const blocks = visible.map((s, idx) => ({ bucket: buckets[idx], html: renderWodBlock(s, idx, total) }));
+  const blocks = colonnes.map((s, idx) => ({ bucket: buckets[idx], html: renderWodBlock(s, idx, total) }));
   const left  = blocks.filter(b => b.bucket === 'left').map(b => b.html).join('');
   const right = blocks.filter(b => b.bucket === 'right').map(b => b.html).join('');
   const has2col = left && right;
 
-  return '<div class="wod-grid'+(has2col?' has-2col':'')+'">'
-       + '<div class="wod-col"><div class="wod-col-inner">'+(left || right)+'</div></div>'
-       + (has2col ? '<div class="wod-col"><div class="wod-col-inner">'+right+'</div></div>' : '')
-       + '</div>';
+  return {
+    html: '<div class="wod-grid'+(has2col?' has-2col':'')+'">'
+        + '<div class="wod-col"><div class="wod-col-inner">'+(left || right)+'</div></div>'
+        + (has2col ? '<div class="wod-col"><div class="wod-col-inner">'+right+'</div></div>' : '')
+        + '</div>',
+    ticker: ticker
+  };
+}
+
+/** Aplatit les blocs du bandeau en une seule ligne : « BICEPS · 2x10 Zottman
+ *  curl ». Les liens vidéo n'ont aucun sens sur un mur — on ne garde que le
+ *  texte visible. */
+function texteBandeau(sections){
+  const bouts = [];
+  sections.forEach(sec => {
+    const h = splitHeading(sec.heading);
+    if(h.title) bouts.push('<b>'+esc(h.title)+'</b>');
+    sec.lines.forEach(l => {
+      const t = stripLinks(l).replace(/^\s*[-*]\s*/, '').replace(/[*_`#>]/g, '').trim();
+      if(t) bouts.push(esc(t));
+    });
+  });
+  return bouts.join(' &middot; ');
 }
 
 function renderWodBlock(sec, idx, total){
@@ -953,7 +1067,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260902-1552';
+const BUILD = '20260909-1215';
 
 async function checkVersion(){
   try{
