@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260909-1445">
+<meta name="build" content="20260909-1553">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -493,15 +493,23 @@ function kidsSeancesDuGroupe(texte, cleGroupe){
     const idxSeance = [];
     corpsSem.forEach((l,i) => { if(/^###\s+/.test(l.trim())) idxSeance.push(i); });
 
+    // Deux formats coexistent depuis le 2026-09-09 (voir NOMENCLATURE §12) :
+    // le tableau | Bloc | Durée | Détail |, et des blocs `#### Titre - Durée`
+    // façon WOD. On garde les deux : le corps brut sert au second.
+    const ajouter = (titre, date, corps) => {
+      out.push({ titre: titre, date: date,
+                 rows: kidsParseTable(corps),
+                 corps: corps.join('\n'),
+                 blocs: corps.some(l => /^####\s+/.test(l.trim())) });
+    };
     if(idxSeance.length){
       idxSeance.forEach((si, j) => {
         const send = j + 1 < idxSeance.length ? idxSeance[j+1] : corpsSem.length;
         const titre = corpsSem[si].trim().replace(/^###\s+/,'');
-        out.push({ titre: titre, date: kidsParseDateFR(titre) || dateSem,
-                   rows: kidsParseTable(corpsSem.slice(si + 1, send)) });
+        ajouter(titre, kidsParseDateFR(titre) || dateSem, corpsSem.slice(si + 1, send));
       });
     } else {
-      out.push({ titre: titreSem, date: dateSem, rows: kidsParseTable(corpsSem) });
+      ajouter(titreSem, dateSem, corpsSem);
     }
   });
   return out;
@@ -521,6 +529,10 @@ function kidsTheme(titre){
  *  renderWodSection() sait déjà mettre en colonnes et redimensionner. On ne
  *  réinvente aucun rendu. */
 function kidsSeanceEnMarkdown(seance){
+  // La séance est déjà écrite en blocs `####` : on la passe telle quelle,
+  // listes à puces comprises — renderWodSection() sait déjà les lire.
+  if(!seance.rows.length && seance.blocs) return '## ' + seance.titre + '\n' + seance.corps;
+
   let md = '## ' + seance.titre + '\n';   // ligne mangée par renderSlide, sert de garde
   seance.rows.forEach(r => {
     const duree = r.duree ? ' - ' + r.duree : '';
@@ -542,7 +554,7 @@ function loadKidsCards(items, now, lire){
         const seances = kidsSeancesDuGroupe(txt, g.cle);
         for(let k = 0; k < seances.length; k++){
           const s = seances[k];
-          if(s.date && sameCalendarDay(s.date, now) && s.rows.length){
+          if(s.date && sameCalendarDay(s.date, now) && (s.rows.length || s.blocs)){
             trouvee = s; source = items[i]; break;
           }
         }
@@ -1272,7 +1284,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260909-1445';
+const BUILD = '20260909-1553';
 
 async function checkVersion(){
   try{
