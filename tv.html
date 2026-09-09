@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260909-1434">
+<meta name="build" content="20260909-1445">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -433,9 +433,9 @@ const TV_DISCIPLINES = ['crossfit', 'hyrox', 'kids'];
    décommenter leur ligne ici, rien d'autre à toucher.
    =========================================================================== */
 const KIDS_GROUPES_TV = [
-  { cle:'PRE-KIDS', key:'prekids', label:'Pré-Kids', color:'#6ec06e' }
-  // { cle:'KIDS',  key:'kidstv',  label:'Kids',   color:'#e8c15a' },
-  // { cle:'TEENS', key:'teenstv', label:'Teens',  color:'#5aa3e8' }
+  { cle:'PRE-KIDS', key:'prekids', label:'Pré-Kids', color:'#6ec06e' },
+  { cle:'KIDS',     key:'kidstv',  label:'Kids',     color:'#e8c15a' },
+  { cle:'TEENS',    key:'teenstv', label:'Teens',    color:'#5aa3e8' }
 ];
 
 const KIDS_MOIS = {janvier:0,'février':1,fevrier:1,mars:2,avril:3,mai:4,juin:5,juillet:6,
@@ -919,21 +919,30 @@ function classifyDayCrossfit(tags){
   });
 }
 
-/** Pré-Kids : préparation à gauche (whiteboard, skill, échauffement), séance
- *  à droite (workout, jeu, retour au calme). Coupure naturelle du déroulé —
- *  et si les libellés changent un jour, on retombe sur un partage en deux
- *  moitiés plutôt que sur une colonne unique illisible. */
+/** Pré-Kids / Kids / Teens : partage POSITIONNEL, moitié / moitié.
+ *
+ *  Surtout pas un classement par catégorie. Un WOD est un ensemble de blocs
+ *  qu'on peut regrouper par nature ; une séance Kids est un DÉROULÉ minuté —
+ *  whiteboard, échauffement, skill, workout, jeu, retour au calme — et
+ *  l'ordre EST la séance. Un premier jet triait « préparation à gauche,
+ *  travail à droite » : sur Teens (2026-09-09) ça envoyait le « GWU »
+ *  (échauffement général) après le workout et remontait le « Post-WO skill »
+ *  avant. Le coach lisait la séance dans le désordre.
+ *
+ *  Avec un partage en deux moitiés, la lecture reste chronologique : colonne
+ *  de gauche de haut en bas, puis colonne de droite. Et les deux colonnes
+ *  sont équilibrées quels que soient les libellés — qui varient d'un groupe
+ *  d'âge à l'autre (Specific WU, GWU, Workout brief, Post-WO skill...). */
 function classifyDayKids(tags){
-  const prep = t => /whiteboard|skill|warm.?up|échauff|echauff/i.test(t);
-  const aGauche = tags.filter(prep).length;
-  if(aGauche && aGauche < tags.length) return tags.map(t => prep(t) ? 'left' : 'right');
   const moitie = Math.ceil(tags.length / 2);
   return tags.map((t, i) => i < moitie ? 'left' : 'right');
 }
 
 const DISPLAY_RULES = {
   crossfit: classifyDayCrossfit,
-  prekids:  classifyDayKids
+  prekids:  classifyDayKids,
+  kidstv:   classifyDayKids,
+  teenstv:  classifyDayKids
 };
 
 /** Blocs jamais affichés sur l'écran TV pour certaines disciplines (demande
@@ -1263,7 +1272,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260909-1434';
+const BUILD = '20260909-1445';
 
 async function checkVersion(){
   try{
