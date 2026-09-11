@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260903-1951">
+<meta name="build" content="20260909-1553">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -314,6 +314,9 @@ input:focus{border-color:var(--orange)}
 .step-dur{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted);background:var(--navy);padding:3px 9px;border-radius:999px;flex:0 0 auto}
 .step-detail{font-size:14px;color:var(--ink);line-height:1.55}
 .step-detail strong{color:#fff}
+.step-li{position:relative;padding-left:14px}
+.step-li:before{content:'';position:absolute;left:2px;top:.62em;width:5px;height:5px;
+                border-radius:50%;background:var(--c,var(--orange))}
 
 /* ---------- Écran d'accueil : séances du jour ---------- */
 .today-card{
@@ -1295,6 +1298,36 @@ function kidsParseTable(lines){
   }
   return rows;
 }
+/** Séance écrite en blocs `#### Titre - Durée` plutôt qu'en tableau
+ *  (nouveau format apparu le 2026-09-09 sur Kids/Teens — voir NOMENCLATURE §12).
+ *  Même forme de sortie que kidsParseTable, plus `lines` pour garder les
+ *  listes à puces telles quelles au rendu. */
+function kidsParseBlocs(lines){
+  const rows = []; let cur = null;
+  lines.forEach(raw => {
+    const t = raw.trim();
+    const m = t.match(/^####\s+(.*)$/);
+    if(m){
+      const h = m[1].trim();
+      const d = h.match(/^(.*?)\s+[-–—]\s+([\d].*)$/);   // « Workout - 10 min »
+      cur = { label: (d ? d[1] : h).replace(/\*\*/g,'').trim(),
+              duree: d ? d[2].trim() : '', detail: '', lines: [] };
+      rows.push(cur);
+      return;
+    }
+    if(!cur || !t || /^-{3,}$/.test(t)) return;
+    cur.lines.push(t);
+  });
+  rows.forEach(r => { r.detail = r.lines.join(' '); });
+  return rows;
+}
+
+/** Les deux formats cohabitent : tableau d'abord, blocs `####` en repli. */
+function kidsRows(lines){
+  const t = kidsParseTable(lines);
+  return t.length ? t : kidsParseBlocs(lines);
+}
+
 function kidsParseWeeks(bodyLines){
   const weekIdx = [];
   bodyLines.forEach((l,i)=>{ if(/^##\s+SEMAINE/i.test(l.trim())) weekIdx.push(i); });
@@ -1313,10 +1346,10 @@ function kidsParseWeeks(bodyLines){
         const shead = weekBody[si].trim().replace(/^###\s+/,'');
         const sbody = weekBody.slice(si+1, send);
         seances.push({ heading: shead, date: kidsParseDateFR(shead) || weekDate,
-          day: kidsParseDayName(shead) || kidsParseDayName(heading), rows: kidsParseTable(sbody) });
+          day: kidsParseDayName(shead) || kidsParseDayName(heading), rows: kidsRows(sbody) });
       });
     } else {
-      seances.push({ heading, date: weekDate, day: kidsParseDayName(heading), rows: kidsParseTable(weekBody) });
+      seances.push({ heading, date: weekDate, day: kidsParseDayName(heading), rows: kidsRows(weekBody) });
     }
     weeks.push({ heading, date: weekDate, seances });
   });
@@ -1498,7 +1531,15 @@ function openKidsSeance(i){
     h += '<div class="step'+(isTest?' test':'')+'">'
        + '<div class="step-head"><span class="step-label">'+inline(r.label)+'</span>'
        + '<span class="step-dur mono">'+esc(r.duree)+'</span></div>'
-       + '<div class="step-detail">'+inline(r.detail)+'</div></div>';
+       + '<div class="step-detail">'
+       + (r.lines && r.lines.length
+            ? r.lines.map(l => {
+                const b = l.match(/^[-*+]\s+(.*)$/);
+                return b ? '<div class="step-li">'+inline(b[1])+'</div>'
+                         : '<div>'+inline(l)+'</div>';
+              }).join('')
+            : inline(r.detail))
+       + '</div></div>';
   });
   view.innerHTML = h;
   window.scrollTo(0,0);
@@ -1868,7 +1909,7 @@ function fmtDate(ms){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260903-1951';
+const BUILD = '20260909-1553';
 
 async function checkVersion(){
   try{
