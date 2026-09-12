@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260909-1553">
+<meta name="build" content="20260912-0843">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -415,7 +415,7 @@ function pickSlide(i){
  *  autres restent sur le repli générique, pas encore validées pour le mur
  *  de salle. Liste à élargir ici quand une nouvelle discipline sera prête,
  *  rien d'autre à toucher. */
-const TV_DISCIPLINES = ['crossfit', 'hyrox', 'kids'];
+const TV_DISCIPLINES = ['crossfit', 'hyrox', 'kids', 'stamina'];
 
 /* ===========================================================================
    PRÉ-KIDS / KIDS / TEENS SUR L'ÉCRAN TV (2026-09-09, demande de Ron)
@@ -931,30 +931,34 @@ function classifyDayCrossfit(tags){
   });
 }
 
-/** Pré-Kids / Kids / Teens : partage POSITIONNEL, moitié / moitié.
+/** Partage POSITIONNEL, moitié / moitié — pour les séances qui se lisent
+ *  comme un DÉROULÉ et non comme un ensemble de blocs regroupables.
  *
- *  Surtout pas un classement par catégorie. Un WOD est un ensemble de blocs
- *  qu'on peut regrouper par nature ; une séance Kids est un DÉROULÉ minuté —
- *  whiteboard, échauffement, skill, workout, jeu, retour au calme — et
- *  l'ordre EST la séance. Un premier jet triait « préparation à gauche,
- *  travail à droite » : sur Teens (2026-09-09) ça envoyait le « GWU »
- *  (échauffement général) après le workout et remontait le « Post-WO skill »
- *  avant. Le coach lisait la séance dans le désordre.
+ *  Surtout pas un classement par catégorie. Un WOD CrossFit se range par
+ *  nature (skill d'un côté, workout de l'autre) ; une séance Kids ou un
+ *  Stamina & Renfo s'enchaînent dans l'ordre écrit — échauffement, skill,
+ *  travail, accessoire. Un premier jet triait « préparation à gauche, travail
+ *  à droite » : sur Teens (2026-09-09) ça envoyait le « GWU » (échauffement
+ *  général) après le workout et remontait le « Post-WO skill » avant. Le
+ *  coach lisait la séance dans le désordre.
  *
  *  Avec un partage en deux moitiés, la lecture reste chronologique : colonne
- *  de gauche de haut en bas, puis colonne de droite. Et les deux colonnes
- *  sont équilibrées quels que soient les libellés — qui varient d'un groupe
- *  d'âge à l'autre (Specific WU, GWU, Workout brief, Post-WO skill...). */
-function classifyDayKids(tags){
+ *  de gauche de haut en bas, puis colonne de droite. Et les colonnes restent
+ *  équilibrées quels que soient les libellés — qui varient d'une semaine et
+ *  d'un groupe à l'autre (Specific WU, GWU, Workout brief, Skill, Force...). */
+function classifyMoitie(tags){
   const moitie = Math.ceil(tags.length / 2);
   return tags.map((t, i) => i < moitie ? 'left' : 'right');
 }
 
 const DISPLAY_RULES = {
   crossfit: classifyDayCrossfit,
-  prekids:  classifyDayKids,
-  kidstv:   classifyDayKids,
-  teenstv:  classifyDayKids
+  prekids:  classifyMoitie,
+  kidstv:   classifyMoitie,
+  teenstv:  classifyMoitie,
+  // Stamina & Renfo (2026-09-12) : échauffement, skill, stamina, renfo —
+  // un déroulé, comme les séances Kids. Même partage.
+  stamina:  classifyMoitie
 };
 
 /** Blocs jamais affichés sur l'écran TV pour certaines disciplines (demande
@@ -1284,7 +1288,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260909-1553';
+const BUILD = '20260912-0843';
 
 async function checkVersion(){
   try{
