@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260912-0843">
+<meta name="build" content="20260912-0849">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -966,6 +966,10 @@ const DISPLAY_RULES = {
  *  la page NST regroupe les 2 mais seule la Conditioning intéresse le mur TV). */
 const HIDDEN_SECTIONS = {
   hyrox:    [/warm.?up/i],
+  // 2026-09-12, demande de Ron : même règle que CrossFit et Hyrox. L'écran de
+  // la salle montre le travail, pas l'échauffement — qui reste dans le .md et
+  // dans l'appli coach.
+  stamina:  [/warm.?up/i],
   // 2026-09-09, demande de Ron : le mur de la salle n'affiche plus l'échauffement
   // CrossFit non plus. Il reste dans le .md — c'est un choix d'AFFICHAGE, pas une
   // suppression de contenu : l'appli coach et les affiches le montrent toujours.
@@ -1288,7 +1292,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260912-0843';
+const BUILD = '20260912-0849';
 
 async function checkVersion(){
   try{
