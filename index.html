@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260909-1553">
+<meta name="build" content="20260913-0004">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -123,6 +123,26 @@ input:focus{border-color:var(--orange)}
   padding:14px 16px;margin-bottom:10px;border-left:3px solid var(--c,var(--line))}
 .sect-routine{color:var(--cyan)}
 .sect-cycle{color:var(--orange2)}
+.rout-mvt-titre{display:flex;align-items:baseline;gap:8px;margin:14px 0 8px;
+                font-family:'Bebas Neue',Impact,sans-serif;font-size:16px;letter-spacing:.03em;
+                color:var(--cyan)}
+.rout-mvt-n{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);
+            letter-spacing:.05em}
+.rout-mvts{display:flex;flex-direction:column}
+.rout-mvt{display:flex;align-items:baseline;padding:6px 0;border-top:1px solid var(--line);
+          font-size:13.5px;line-height:1.45}
+.rout-mvt:first-child{border-top:0}
+.rout-mvt-j{flex:0 0 92px;font-family:'JetBrains Mono',monospace;font-size:10.5px;
+            letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.rout-mvt-t{flex:1;min-width:0}
+.rout-mvt-vide{margin-top:12px;color:var(--muted);font-size:13px;font-style:italic}
+.cyc-seance{padding:8px 0;border-top:1px solid var(--line)}
+.cyc-seance-h{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.05em;
+              text-transform:uppercase;color:var(--orange2);margin-bottom:4px}
+.cyc-seance-l{font-size:13.5px;line-height:1.45;padding-left:12px;position:relative}
+.cyc-seance-l:before{content:'';position:absolute;left:2px;top:.62em;width:4px;height:4px;
+                     border-radius:50%;background:var(--line)}
+.cyc-seance-l em{color:var(--muted);font-style:italic}
 #routineSlot{--c:var(--cyan)}
 #cyclesSlot{--c:var(--orange)}
 .cyc-fam{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
@@ -188,6 +208,11 @@ input:focus{border-color:var(--orange)}
   padding:14px 15px;text-align:left;
 }
 .week-head:active{background:var(--navy-3)}
+.week-badge{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.07em;
+            text-transform:uppercase;padding:3px 8px;border-radius:999px;margin-left:8px;
+            white-space:nowrap;flex:0 0 auto}
+.week-badge.encours{background:rgba(110,192,110,.16);color:#8fd48f}
+.week-badge.avenir {background:rgba(232,193,90,.15);color:#e8c15a}
 .week-num{
   font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;
   min-width:52px;color:var(--c,var(--orange));
@@ -560,14 +585,16 @@ function screenHome(){
   h += '<div class="section-title sect-cycle">Cycle CrossFit</div>'
      + '<div id="cyclesSlot"><div class="spin"></div></div>';
 
-  h += '<div class="section-title">Aujourd\'hui</div>'
-     + '<div id="todaySlot"><div class="spin"></div></div>';
+  // Bloc « Aujourd'hui » retiré de l'accueil le 2026-09-12 a la demande de Ron.
+  // renderTodaySection() et ses aides sont conservees telles quelles : les
+  // remettre ne demande que les deux lignes ci-dessous et l'appel.
+  //   h += '<div class="section-title">Aujourd\'hui</div>'
+  //      + '<div id="todaySlot"><div class="spin"></div></div>';
 
   view.innerHTML = h;
   window.scrollTo(0,0);
   renderCycles();
   renderRoutines();
-  renderTodaySection();
 }
 
 /* ===========================================================================
@@ -599,13 +626,31 @@ function parseCycles(md){
     if(mCyc){
       fam.cycles.push({ nom: mCyc[1], duree: mCyc[2],
                         statut: mCyc[3].toLowerCase().trim(),
-                        dates: (mCyc[4] || '').trim(), desc: [] });
+                        dates: (mCyc[4] || '').trim(),
+                        desc: [], seances: [], dansSeances: false });
       return;
     }
     const dernier = fam.cycles[fam.cycles.length - 1];
-    if(dernier && l.trim() && !/^#{1,6}\s/.test(l) && !/^-{3,}$/.test(l.trim())){
-      dernier.desc.push(l.trim());
+    if(!dernier) return;
+    // « #### Séances du cycle » : tout ce qui suit est le travail relevé dans
+    // les blocs Part 1 des fichiers CrossFit, genere par
+    // scripts/extract_cycles.py. Avant ce titre, la description de Ron.
+    if(/^####\s*S[ée]ances/i.test(l)){ dernier.dansSeances = true; return; }
+    if(/^#{1,6}\s/.test(l)){ dernier.dansSeances = false; return; }
+    const t = l.trim();
+    if(!t || /^-{3,}$/.test(t)) return;
+    if(dernier.dansSeances){
+      if(/^\*Bloc r[ée]g[ée]n[ée]r[ée]/i.test(t)) return;             // avertissement technique
+      // En-tete de semaine : uniquement la forme produite par le script,
+      // « **3/6 — Lundi 07/09** » ou « **Lundi 07/09** ». Un simple gras ne
+      // suffit pas : les seances contiennent des lignes comme
+      // « **EMOM 12' — Pull and Push** » qui, sinon, ouvraient une fausse semaine.
+      const mm = t.match(/^\*\*(?:\d+\s*\/\s*\d+\s*[—–-]\s*)?(?:Lundi|Mardi|Mercredi|Jeudi|Vendredi|Samedi|Dimanche)\s+\d{2}\/\d{2}\*\*$/i);
+      if(mm) dernier.seances.push({ entete: t.replace(/\*\*/g, ''), lignes: [] });
+      else if(dernier.seances.length) dernier.seances[dernier.seances.length - 1].lignes.push(t);
+      return;
     }
+    dernier.desc.push(t);
   });
   return familles.filter(f => f.cycles.length);
 }
@@ -651,11 +696,27 @@ function parseRoutines(md){
       if(idx < 0) return;                       // mois non reconnu : ligne ignorée
       out.push({ mois: m[1], annee: +m[2], rang: +m[2] * 12 + idx,
                  libelle: m[1] + ' ' + m[2],
-                 statutForce: (m[3] || '').toLowerCase().trim(), desc: [] });
+                 statutForce: (m[3] || '').toLowerCase().trim(),
+                 desc: [], mouvements: [], dansMouvements: false });
       return;
     }
     const d = out[out.length - 1];
-    if(d && l.trim() && !/^#{1,6}\s/.test(l) && !/^-{3,}$/.test(l.trim())) d.desc.push(l.trim());
+    if(!d) return;
+    // « #### Mouvements proposés » : tout ce qui suit est la liste des
+    // mouvements du jour, generee par scripts/extract_routines.py depuis les
+    // fichiers CrossFit. Avant ce titre, c'est la description ecrite par Ron.
+    if(/^####\s*Mouvements/i.test(l)){ d.dansMouvements = true; return; }
+    if(/^#{1,6}\s/.test(l)){ d.dansMouvements = false; return; }
+    const t = l.trim();
+    if(!t || /^-{3,}$/.test(t)) return;
+    if(d.dansMouvements){
+      if(/^\*Bloc regenere|^\*Bloc régénéré/i.test(t)) return;   // avertissement technique
+      const mm = t.match(/^-\s*\*\*(.+?)\*\*\s*[—-]\s*(.+)$/);
+      if(mm) d.mouvements.push({ jour: mm[1], texte: mm[2] });
+      else if(/^[-*]\s+/.test(t)) d.mouvements.push({ jour: '', texte: t.replace(/^[-*]\s+/, '') });
+      return;
+    }
+    d.desc.push(t);
   });
   const now = new Date();
   const rangJour = now.getFullYear() * 12 + now.getMonth();
@@ -767,8 +828,21 @@ async function screenCycles(famCible, interne){
     if(choisi){
       h += '<div class="cyc-detail"><b>' + esc(choisi.nom) + '</b> · ' + esc(choisi.duree)
          + (choisi.desc.length ? '<br>' + inline(choisi.desc.join(' '))
-                               : '<br><i>Description à compléter.</i>')
-         + '</div>';
+                               : '<br><i>Description à compléter.</i>');
+      if(choisi.seances.length){
+        h += '<div class="rout-mvt-titre" style="color:var(--orange2)">Séances du cycle'
+           + '<span class="rout-mvt-n">' + choisi.seances.length + ' semaine'
+           + (choisi.seances.length > 1 ? 's' : '') + '</span></div>'
+           + choisi.seances.map(sc =>
+               '<div class="cyc-seance"><div class="cyc-seance-h">' + inline(sc.entete) + '</div>'
+               + sc.lignes.map(x => '<div class="cyc-seance-l">'
+                   + inline(x.replace(/^[-*]\s+/, '')) + '</div>').join('')
+               + '</div>').join('');
+      } else {
+        h += '<div class="rout-mvt-vide">Aucun bloc « Part 1 » relevé pour ce cycle '
+           + 'dans les fichiers CrossFit du projet.</div>';
+      }
+      h += '</div>';
     }
   });
   view.innerHTML = h;
@@ -864,7 +938,23 @@ async function screenRoutines(interne){
   if(choisi){
     h += '<div class="cyc-detail"><b>' + esc(choisi.libelle) + '</b>'
        + (choisi.desc.length ? '<br>' + inline(choisi.desc.join(' '))
-                             : '<br><i>Description à compléter.</i>') + '</div>';
+                             : '<br><i>Description à compléter.</i>');
+    if(choisi.mouvements.length){
+      h += '<div class="rout-mvt-titre">Mouvements proposés'
+         + '<span class="rout-mvt-n">' + choisi.mouvements.length + ' jours</span></div>'
+         + '<div class="rout-mvts">'
+         + choisi.mouvements.map(m =>
+             '<div class="rout-mvt">'
+             + (m.jour ? '<span class="rout-mvt-j">' + esc(m.jour) + '</span>' : '')
+             + '<span class="rout-mvt-t">' + inline(m.texte) + '</span></div>').join('')
+         + '</div>';
+    } else {
+      // Dire pourquoi c'est vide plutot que de laisser un blanc : les mois
+      // anterieurs a aout 2026 n'ont pas de fichier CrossFit dans le projet.
+      h += '<div class="rout-mvt-vide">Aucun mouvement relevé pour ce mois — '
+         + 'les fichiers CrossFit du projet démarrent en août 2026.</div>';
+    }
+    h += '</div>';
   }
   view.innerHTML = h;
   window.scrollTo(0, 0);
@@ -1227,6 +1317,9 @@ function renderWeeks(list, color, q, discLabel){
   // demande de Ron, 2026-08-21). Repli sur la plus récente si la semaine
   // en cours n'a pas encore de fichier.
   const cur = isoWeekYear(new Date());
+  const lundiProchain = new Date();
+  lundiProchain.setDate(lundiProchain.getDate() + 7);
+  const suiv = isoWeekYear(lundiProchain);   // +7 jours : passe l'annee sans cas particulier
   const curKey = String(cur.year).padStart(4,'0') + '-' + String(cur.week).padStart(2,'0');
   const openKey = keys.includes(curKey) ? curKey : keys[0];
 
@@ -1242,12 +1335,22 @@ function renderWeeks(list, color, q, discLabel){
     // Plus de sous-titre par catégorie ici : depuis l'éclatement de Cours spé
     // en disciplines séparées (2026-08-21), un écran de semaines ne contient
     // plus qu'une seule catégorie — le titre de l'écran le dit déjà.
+    // Pastille de situation (2026-09-12) : le coach repere la semaine en cours
+    // et la suivante sans lire les dates. Calcule sur la semaine ISO reelle,
+    // pas sur la position dans la liste — un fichier prepare trois semaines a
+    // l'avance ne doit pas passer pour « a venir » immediat.
+    let badge = '';
+    if(g.week != null && g.year != null){
+      if(g.week === cur.week && g.year === cur.year) badge = '<span class="week-badge encours">En cours</span>';
+      else if(g.week === suiv.week && g.year === suiv.year) badge = '<span class="week-badge avenir">À venir</span>';
+    }
     h += '<div class="week'+open+'" style="--c:'+color+'">'
        + '<button class="week-head" onclick="this.parentNode.classList.toggle(\'open\')">'
        + '<span class="week-num mono">'+label+'</span>'
        + '<span class="week-meta"><span class="t">'
        +   esc(solo ? solo.groupTitle : (g.week == null ? 'Non classé' : weekLabel(g.week, g.year)))
        + '</span></span>'
+       + badge
        + '<span class="chev">›</span></button><div class="week-body">';
     g.files.forEach(f => {
       h += '<button class="file" onclick="openFile(\''+f.id+'\')">'
@@ -1909,7 +2012,7 @@ function fmtDate(ms){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260909-1553';
+const BUILD = '20260913-0004';
 
 async function checkVersion(){
   try{
