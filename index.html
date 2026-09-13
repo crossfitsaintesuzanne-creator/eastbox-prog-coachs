@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260913-0004">
+<meta name="build" content="20260913-2015">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -280,6 +280,12 @@ input:focus{border-color:var(--orange)}
   padding:13px;overflow-x:auto;margin:0 0 13px;
 }
 .doc pre code{background:none;padding:0;color:var(--ink)}
+/* Couleur de lien PAR DÉFAUT (2026-09-13). Sans elle, tout lien hors .doc et
+   .wtxt tombait sur le bleu nuit du navigateur — illisible sur le fond navy :
+   détails des routines et des cycles, étapes des séances Kids. Les deux règles
+   ciblées (.doc a, .wtxt a) restent plus spécifiques et gardent leur couleur.
+   Une règle d'auteur bat aussi le violet « déjà visité » du navigateur. */
+a{color:var(--cyan-light);text-underline-offset:2px}
 .doc a{color:var(--orange)}
 .doc img{max-width:100%;border-radius:10px}
 .table-wrap{overflow-x:auto;margin:0 0 15px;-webkit-overflow-scrolling:touch}
@@ -2012,7 +2018,7 @@ function fmtDate(ms){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260913-0004';
+const BUILD = '20260913-2015';
 
 async function checkVersion(){
   try{
