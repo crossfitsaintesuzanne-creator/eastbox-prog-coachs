@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260913-2015">
+<meta name="build" content="20260913-2102">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -840,7 +840,12 @@ async function screenCycles(famCible, interne){
            + '<span class="rout-mvt-n">' + choisi.seances.length + ' semaine'
            + (choisi.seances.length > 1 ? 's' : '') + '</span></div>'
            + choisi.seances.map(sc =>
-               '<div class="cyc-seance"><div class="cyc-seance-h">' + inline(sc.entete) + '</div>'
+               '<div class="cyc-seance">'
+               // Seule la progression « 1/6 » est affichee : elle ordonne deja les
+               // semaines, le jour et la date n'ajoutaient rien (Ron, 2026-09-13).
+               + ((/^\s*(\d+\s*\/\s*\d+)/.exec(sc.entete) || [])[1]
+                    ? '<div class="cyc-seance-h">' + esc(/^\s*(\d+\s*\/\s*\d+)/.exec(sc.entete)[1]) + '</div>'
+                    : '')
                + sc.lignes.map(x => '<div class="cyc-seance-l">'
                    + inline(x.replace(/^[-*]\s+/, '')) + '</div>').join('')
                + '</div>').join('');
@@ -950,8 +955,11 @@ async function screenRoutines(interne){
          + '<span class="rout-mvt-n">' + choisi.mouvements.length + ' jours</span></div>'
          + '<div class="rout-mvts">'
          + choisi.mouvements.map(m =>
+             // Plus de jour ni de date a l'ecran (2026-09-13, Ron : « pas oblige de
+             // mettre les dates »). Le jour seul ne suffisait pas a les remplacer :
+             // « Lundi » revenait deux fois dans le mois. L'ordre de la liste suffit.
+             // Les dates restent dans le .md, ou elles servent au tri.
              '<div class="rout-mvt">'
-             + (m.jour ? '<span class="rout-mvt-j">' + esc(m.jour) + '</span>' : '')
              + '<span class="rout-mvt-t">' + inline(m.texte) + '</span></div>').join('')
          + '</div>';
     } else {
@@ -2018,7 +2026,7 @@ function fmtDate(ms){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260913-2015';
+const BUILD = '20260913-2102';
 
 async function checkVersion(){
   try{
