@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260912-0849">
+<meta name="build" content="20260916-1518">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -891,6 +891,11 @@ function fitOne(el, target, sMin, sMax){
    Parsing tolérant : si la structure n'est pas reconnue, repli sur md().
    =========================================================================== */
 function splitHeading(h){
+  // 2026-09-16 : Ron numérote ses blocs (« A - Warm-up », « B - Routine - BICEPS »).
+  // Sans ce retrait, le nom du bloc devenait « A » : le Warm-up n'était plus
+  // reconnu donc plus masqué, et la Routine ne partait plus dans le bandeau.
+  // Une seule lettre ou un seul chiffre : « WU - », « GWU - » restent intacts.
+  h = h.replace(/^[A-Z0-9]\s*[-–—.)]\s+(?=\S)/, '');
   const m = h.match(/^(.*?)\s[-–—]\s(.*)$/);
   if(m) return { tag: m[1].trim(), title: m[2].trim() };
   return { tag: h.trim(), title: '' };
@@ -915,8 +920,9 @@ function splitHeading(h){
  *  positionnelle (1er → gauche, dernier → droite) — jamais de bloc perdu.
  *  Vérifié sur les 7 jours de la semaine 35 avant déploiement. */
 function classifyDayCrossfit(tags){
-  const isPart1 = t => /^part\s*1\b/i.test(t) || /^part\s*a\b/i.test(t);
-  const isPart2 = t => /^part\s*2\b/i.test(t) || /^part\s*b\b/i.test(t);
+  // « Part. A » (avec point) existe aussi dans les fichiers de Ron.
+  const isPart1 = t => /^part\.?\s*(1|a)\b/i.test(t);
+  const isPart2 = t => /^part\.?\s*(2|b)\b/i.test(t);
   const twoPartDay = tags.some(isPart1) && tags.some(isPart2);
 
   return tags.map((tag, idx) => {
@@ -1292,7 +1298,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260912-0849';
+const BUILD = '20260916-1518';
 
 async function checkVersion(){
   try{
