@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="build" content="20260908-1920">
+<meta name="build" content="20260923-2322">
 <title>Suivi Prog Indiv — Eastbox</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -137,6 +137,76 @@ input:focus{border-color:var(--orange)}
 .empty .big{font-size:30px;display:block;margin-bottom:8px}
 footer{color:var(--muted);font-size:12px;text-align:center;padding:26px var(--pad) 40px}
 footer code{font-family:'JetBrains Mono',monospace}
+.ath.clic{display:block;width:100%;text-align:left;font:inherit;color:inherit}
+.ath.clic:active{background:var(--navy-3)}
+.ath .chev{margin-left:auto;color:var(--muted);font-size:17px;line-height:1}
+
+/* ---------- fiche athlète : jour par jour, semaine par semaine ---------- */
+.retour{background:none;color:var(--muted);font-size:13px;padding:6px 0;margin-top:4px}
+.retour:active{color:var(--ink)}
+.fiche-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:6px 0 14px}
+.fiche-head h2{font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:27px;
+               letter-spacing:.03em;margin:0;line-height:1}
+.semnav{display:flex;align-items:center;gap:10px;background:var(--navy-2);border:1px solid var(--line);
+        border-radius:var(--r);padding:9px 12px;margin-bottom:12px}
+.semnav .lbl{flex:1;text-align:center}
+.semnav .lbl b{font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:19px;letter-spacing:.03em}
+.semnav .lbl span{display:block;font-family:'JetBrains Mono',monospace;font-size:10px;
+                  color:var(--muted);letter-spacing:.05em;margin-top:2px}
+.semnav button{width:34px;height:34px;border-radius:10px;background:var(--navy-3);
+               border:1px solid var(--line);display:grid;place-items:center;font-size:15px}
+.semnav button:disabled{opacity:.3;cursor:default}
+.bilan-sem{display:flex;gap:18px;flex-wrap:wrap;background:var(--navy-2);border:1px solid var(--line);
+           border-radius:var(--r);padding:12px 15px;margin-bottom:14px}
+
+/* Vue d'ensemble : les 6 dernières semaines d'un coup d'œil. L'objectif de Ron
+   (2026-09-23) est de « programmer la semaine à venir » — il lui faut donc la
+   comparaison des semaines, pas seulement le détail de l'une d'elles. */
+.apercu{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);
+        padding:8px 6px;margin-bottom:12px;overflow-x:auto}
+.apercu table{border-collapse:collapse;width:100%;min-width:420px}
+.apercu th{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.07em;
+           text-transform:uppercase;color:var(--muted);font-weight:600;text-align:right;
+           padding:4px 8px}
+.apercu th:first-child{text-align:left}
+.apercu td{padding:5px 8px;font-size:13.5px;text-align:right;border-top:1px solid var(--line)}
+.apercu td:first-child{text-align:left}
+.apercu tr.sel td{background:rgba(234,141,73,.11)}
+.apercu tr.clic{cursor:pointer}
+.apercu tr.clic:active td{background:var(--navy-3)}
+.apercu .sem{font-family:'JetBrains Mono',monospace;font-size:12px}
+.apercu .sem small{display:block;color:var(--muted);font-size:10px}
+.barre{height:7px;border-radius:4px;background:var(--orange);min-width:2px;display:block}
+.barre.creux{background:var(--navy-3)}
+.apercu td.bar{width:34%}
+
+.jour{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r);
+      padding:11px 14px;margin-bottom:8px;border-left:3px solid var(--line)}
+.jour.actif{border-left-color:var(--ok)}
+.jour.auj{border-left-color:var(--orange)}
+.jour.vide{opacity:.55}
+.jour-head{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.jour-nom{font-weight:600;font-size:14.5px;text-transform:capitalize}
+.jour-head .pill{margin-left:0}
+.jour-head .droite{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.mesures{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px}
+.mesure{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)}
+.mesure b{font-family:Inter,sans-serif;font-size:14px;color:var(--ink);font-weight:600}
+.mesure.fort b{color:var(--warn)}
+.ligne{margin-top:8px;font-size:13.5px}
+.ligne .et{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.07em;
+           text-transform:uppercase;color:var(--muted);display:block;margin-bottom:2px}
+.ligne.alerte-txt{color:#f0a5a5}
+.seances{margin-top:9px;display:flex;flex-direction:column;gap:7px}
+.seance{background:rgba(0,0,0,.16);border-radius:10px;padding:8px 10px}
+.seance .nom{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.06em;
+             text-transform:uppercase;color:var(--orange);display:block;margin-bottom:4px}
+.exo{display:flex;gap:8px;font-size:13.5px;padding:2px 0;flex-wrap:wrap}
+.exo .quoi{flex:0 0 auto;font-weight:600}
+.exo .res{color:var(--ink)}
+.exo .com{color:var(--muted);font-size:12.5px;width:100%}
+.hors{margin-top:10px;font-size:13px;color:var(--muted)}
+
 .ver{position:fixed;right:6px;bottom:4px;font-family:'JetBrains Mono',monospace;
      font-size:9px;color:rgba(142,160,189,.45);pointer-events:none}
 </style>
@@ -190,7 +260,7 @@ footer code{font-family:'JetBrains Mono',monospace}
    de l'Apps Script, qui n'accepte que le compte dashboard.
    =========================================================================== */
 const API = 'https://script.google.com/macros/s/AKfycbyiug_GyeZa-lgbbIB7TQZ_3_p8pIpRwxF0ICYuWUXQ5NbKcj6pH3dMsVBspScEYB9pMg/exec';
-const BUILD = '20260908-1920';
+const BUILD = '20260923-2322';
 const CLE_JETON = 'eastbox_dash_token';
 
 let TOKEN = null;
@@ -333,7 +403,31 @@ function jolieDate(cle){
 /* ------------------------------- rendu ---------------------------------- */
 let DATA = null;
 
+/* Deux écrans : la liste (accueil) et la fiche d'un athlète, semaine par
+   semaine et jour par jour (demande de Ron, 2026-09-23). Tout est calculé
+   depuis les données déjà envoyées par l'API — rien de nouveau à charger. */
+let VUE = { ecran: 'accueil', athleteId: null, lundi: null };
+
+function lundiDe(cle){
+  const p = cle.split('-');
+  const d = new Date(Date.UTC(+p[0], +p[1]-1, +p[2]));
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() || 7) - 1));
+  return cleDate(d);
+}
+function ouvrirAthlete(id){
+  VUE = { ecran:'athlete', athleteId:id, lundi: lundiDe(DATA.aujourdhui) };
+  rendre(); window.scrollTo(0, 0);
+}
+function fermerFiche(){ VUE = { ecran:'accueil' }; rendre(); window.scrollTo(0, 0); }
+function decalerSemaine(n){ VUE.lundi = decale(VUE.lundi, 7 * n); rendre(); window.scrollTo(0, 0); }
+function allerSemaine(lundi){ VUE.lundi = lundi; rendre(); window.scrollTo(0, 0); }
+
 function rendre(){
+  if(VUE.ecran === 'athlete'){ rendreFiche(); return; }
+  rendreAccueil();
+}
+
+function rendreAccueil(){
   const app = document.getElementById('app');
 
 
@@ -409,10 +503,12 @@ function ficheHtml(f){
   const stat = (k, v, s) => '<div class="stat"><span class="k">' + k + '</span>'
     + '<span class="v">' + v + (s ? ' <small>' + s + '</small>' : '') + '</span></div>';
 
-  let h = '<div class="ath"><div class="ath-head">'
+  let h = '<button class="ath clic" onclick="ouvrirAthlete(\'' + esc(f.a.athleteId) + '\')">'
+        + '<div class="ath-head">'
         + '<span class="ath-nom">' + esc(f.a.nom) + '</span>'
         + '<span class="ath-maj">' + esc(f.a.athleteId) + '</span>'
-        + '<span class="ath-pills">' + pills.join('') + '</span></div>';
+        + '<span class="ath-pills">' + pills.join('') + '</span>'
+        + '<span class="chev">›</span></div>';
 
   h += '<div class="ath-stats">'
      + '<div class="stat"><span class="k">7 derniers jours</span>'
@@ -430,9 +526,217 @@ function ficheHtml(f){
        + esc(f.mot.motCoach) + '</div>';
   }
 
+  return h + '</button>';
+}
+
+
+/* ===========================================================================
+   FICHE ATHLÈTE — une semaine à la fois, un bloc par jour
+   =========================================================================== */
+const JOURS_LONG = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+
+/** Un log appartient à la semaine du plan qu'il renseigne (semaine/annee), et
+ *  seulement à défaut à la semaine de sa date d'envoi : un athlète qui saisit
+ *  le dimanche soir la séance du mercredi ne doit pas la voir changer de
+ *  semaine. Il reste rangé au jour de la saisie, la seule date connue. */
+function logDeLaSemaine(l, sem){
+  if(l.semaine && l.annee) return l.semaine === sem.num && l.annee === sem.annee;
+  const s = semaineIso(l.d);
+  return memeSemaine(s, sem);
+}
+
+function rendreFiche(){
+  const app = document.getElementById('app');
+  const a = (DATA.athletes || []).find(x => x.athleteId === VUE.athleteId);
+  if(!a){ fermerFiche(); return; }
+
+  const auj = DATA.aujourdhui;
+  const lundi = VUE.lundi, dimanche = decale(lundi, 6);
+  const sem = semaineIso(lundi);
+  const profBilans = (DATA.profondeur && DATA.profondeur.bilans) || 60;
+  const plusVieux = lundiDe(decale(auj, -profBilans));
+  const peutAvant = lundi > plusVieux;
+  // On autorise une semaine d'avance : l'objectif de Ron est de PRÉPARER la
+  // semaine suivante, et la pastille de plan lui dit si elle est déjà déposée.
+  const peutApres = lundi < lundiDe(decale(auj, 7));
+
+  document.getElementById('sousTitre').textContent = a.nom + ' · semaine ' + sem.num;
+
+  const jours = [];
+  for(let i = 0; i < 7; i++) jours.push(decale(lundi, i));
+
+  const bilansSem = (a.bilans || []).filter(b => jours.indexOf(b.d) !== -1);
+  const logsSem   = (a.logs || []).filter(l => logDeLaSemaine(l, sem));
+  const nutriSem  = (a.nutri || []).filter(n => jours.indexOf(n.d) !== -1);
+
+  const charge = bilansSem.reduce((t, b) => t + ((b.duration || 0) * (b.rpe || 0)), 0);
+  const moy = (xs) => moyenne(xs.filter(v => v != null));
+  const moySommeil = moy(bilansSem.map(b => b.sommeilH));
+  const moyStress  = moy(bilansSem.map(b => b.stress));
+  const moyReveil  = moy(bilansSem.map(b => b.reveil));
+  const seancesSem = [];
+  logsSem.forEach(l => { const n = l.seance || 'Séance'; if(seancesSem.indexOf(n) === -1) seancesSem.push(n); });
+  const moyKcal = moy(nutriSem.map(n => n.kcal));
+  const plan = (a.plans || []).find(p => p.semaine === sem.num && p.annee === sem.annee);
+
+  const stat = (k, v, s) => '<div class="stat"><span class="k">' + k + '</span>'
+    + '<span class="v">' + v + (s ? ' <small>' + s + '</small>' : '') + '</span></div>';
+  const un = (x, n) => x == null ? '—' : x.toFixed(n === undefined ? 1 : n);
+
+  let h = '<button class="retour" onclick="fermerFiche()">‹ Tous les athlètes</button>'
+    + '<div class="fiche-head"><h2>' + esc(a.nom) + '</h2>'
+    + '<span class="ath-maj">' + esc(a.athleteId) + '</span>'
+    + (a.nutritionActive ? '<span class="pill info">NUTRITION</span>' : '')
+    + (plan ? '<span class="pill ok">PLAN DÉPOSÉ</span>' : '<span class="pill">SANS PLAN</span>')
+    + '</div>';
+
+  h += '<div class="semnav">'
+    + '<button onclick="decalerSemaine(-1)"' + (peutAvant ? '' : ' disabled') + '>‹</button>'
+    + '<div class="lbl"><b>Semaine ' + sem.num + '</b>'
+    + '<span>' + jolieDate(lundi) + ' — ' + jolieDate(dimanche) + '</span></div>'
+    + '<button onclick="decalerSemaine(1)"' + (peutApres ? '' : ' disabled') + '>›</button></div>';
+
+  h += apercuHtml(a, auj, sem);
+
+  h += '<div class="bilan-sem">'
+    + stat('Charge', charge || '—')
+    + stat('Séances', seancesSem.length || '—')
+    + stat('Bilans', bilansSem.length + '<small>/7</small>')
+    + stat('Sommeil', un(moySommeil), moySommeil != null ? 'h' : '')
+    + stat('Stress', un(moyStress), moyStress != null ? '/10' : '')
+    + stat('Réveil', un(moyReveil), moyReveil != null ? '/5' : '')
+    + (a.nutritionActive ? stat('Kcal / jour', moyKcal != null ? Math.round(moyKcal) : '—') : '')
+    + '</div>';
+
+  h += jours.map((cle, i) => jourHtml(a, cle, i, sem, auj)).join('');
+
+  // Séances saisies pour cette semaine de plan, mais envoyées un autre jour :
+  // elles n'apparaissent dans aucun bloc ci-dessus, on les montre à part.
+  const horsJours = logsSem.filter(l => jours.indexOf(l.d) === -1);
+  if(horsJours.length){
+    h += '<div class="hors">' + horsJours.length + ' résultat'
+      + (horsJours.length > 1 ? 's saisis' : ' saisi') + ' pour cette semaine à une autre date :'
+      + seancesHtml(horsJours, true) + '</div>';
+  }
+
+  app.innerHTML = h;
+}
+
+/** Les 6 dernières semaines : charge, séances, bilans, sommeil, stress.
+ *  Une ligne cliquable ouvre la semaine correspondante. */
+function apercuHtml(a, auj, semAffichee){
+  const lignes = [];
+  for(let k = 5; k >= 0; k--){
+    const lundi = decale(lundiDe(auj), -7 * k);
+    const sem = semaineIso(lundi);
+    const jours = [];
+    for(let i = 0; i < 7; i++) jours.push(decale(lundi, i));
+    const bil = (a.bilans || []).filter(b => jours.indexOf(b.d) !== -1);
+    const logs = (a.logs || []).filter(l => logDeLaSemaine(l, sem));
+    const seances = [];
+    logs.forEach(l => { const n = l.seance || 'Séance'; if(seances.indexOf(n) === -1) seances.push(n); });
+    const moy = xs => moyenne(xs.filter(v => v != null));
+    lignes.push({
+      lundi, sem,
+      charge: bil.reduce((t, b) => t + ((b.duration || 0) * (b.rpe || 0)), 0),
+      seances: seances.length,
+      bilans: bil.length,
+      sommeil: moy(bil.map(b => b.sommeilH)),
+      stress: moy(bil.map(b => b.stress)),
+      encours: k === 0
+    });
+  }
+  const maxCharge = Math.max.apply(null, lignes.map(l => l.charge).concat([1]));
+  const un = x => x == null ? '—' : x.toFixed(1);
+
+  return '<div class="apercu"><table>'
+    + '<tr><th>Semaine</th><th>Charge</th><th class="bar"></th><th>Séances</th>'
+    + '<th>Bilans</th><th>Sommeil</th><th>Stress</th></tr>'
+    + lignes.map(l =>
+        '<tr class="clic' + (memeSemaine(l.sem, semAffichee) ? ' sel' : '') + '"'
+        + ' onclick="allerSemaine(\'' + l.lundi + '\')">'
+        + '<td><span class="sem">S' + l.sem.num + (l.encours ? ' ·' : '')
+        + '<small>' + jolieDate(l.lundi) + '</small></span></td>'
+        + '<td>' + (l.charge || '—') + '</td>'
+        + '<td class="bar"><span class="barre' + (l.charge ? '' : ' creux') + '" style="width:'
+        + Math.round(100 * l.charge / maxCharge) + '%"></span></td>'
+        + '<td>' + (l.seances || '—') + '</td>'
+        + '<td>' + l.bilans + '/7</td>'
+        + '<td>' + un(l.sommeil) + '</td>'
+        + '<td>' + un(l.stress) + '</td></tr>').join('')
+    + '</table></div>';
+}
+
+function jourHtml(a, cle, i, sem, auj){
+  const b = (a.bilans || []).find(x => x.d === cle);
+  const logs = (a.logs || []).filter(l => l.d === cle && logDeLaSemaine(l, sem));
+  const n = (a.nutri || []).find(x => x.d === cle);
+  const futur = cle > auj;
+  const vide = !b && !logs.length && !n;
+
+  let cls = 'jour';
+  if(cle === auj) cls += ' auj';
+  else if(!vide) cls += ' actif';
+  if(vide) cls += ' vide';
+
+  let h = '<div class="' + cls + '"><div class="jour-head">'
+    + '<span class="jour-nom">' + JOURS_LONG[i] + ' ' + jolieDate(cle) + '</span>'
+    + '<span class="droite">'
+    + (cle === auj ? '<span class="pill warn">AUJOURD\'HUI</span>' : '')
+    + (b ? '<span class="pill ok">BILAN</span>' : (futur ? '' : '<span class="pill">PAS DE BILAN</span>'))
+    + (logs.length ? '<span class="pill info">' + logs.length + ' RÉSULTAT' + (logs.length > 1 ? 'S' : '') + '</span>' : '')
+    + '</span></div>';
+
+  if(b){
+    const m = [];
+    const mes = (k, v, u, fort) => { if(v == null) return;
+      m.push('<span class="mesure' + (fort ? ' fort' : '') + '">' + k + ' <b>' + v + '</b>' + (u || '') + '</span>'); };
+    mes('sommeil', b.sommeilH, ' h');
+    mes('réveil', b.reveil, '/5', b.reveil != null && b.reveil <= SEUILS.reveilBas);
+    mes('stress', b.stress, '/10', b.stress != null && b.stress >= SEUILS.stressEleve);
+    mes('durée', b.duration, ' min');
+    mes('RPE', b.rpe, '/10');
+    if(b.duration && b.rpe) mes('charge', b.duration * b.rpe, '');
+    mes('hydratation', b.hydraL, ' L');
+    mes('énergie soir', b.energieSoir, '/10');
+    if(m.length) h += '<div class="mesures">' + m.join('') + '</div>';
+
+    if(!estVide(b.activites)) h += '<div class="ligne"><span class="et">Activités</span>' + esc(b.activites) + '</div>';
+    if(!estVide(b.douleurs))  h += '<div class="ligne alerte-txt"><span class="et">Douleurs</span>' + esc(b.douleurs) + '</div>';
+    if(!estVide(b.sommeilQ))  h += '<div class="ligne"><span class="et">Qualité de sommeil</span>' + esc(b.sommeilQ) + '</div>';
+    if(!estVide(b.motCoach))  h += '<div class="mot"><span class="qui">Mot pour toi</span>' + esc(b.motCoach) + '</div>';
+  }
+
+  if(logs.length) h += seancesHtml(logs, false);
+
+  if(n) h += '<div class="ligne"><span class="et">Nutrition</span>'
+    + n.kcal + ' kcal · ' + n.prot + ' g de protéines · ' + n.gluc + ' g de glucides · '
+    + n.lip + ' g de lipides <span style="color:var(--muted)">(' + n.repas + ' repas)</span></div>';
+
+  if(vide) h += '<div class="ligne" style="color:var(--muted)">' + (futur ? 'À venir.' : 'Rien de saisi ce jour-là.') + '</div>';
+
   return h + '</div>';
 }
 
+/** Les résultats d'un jour, regroupés par séance. */
+function seancesHtml(logs, compact){
+  const par = [];
+  logs.forEach(l => {
+    const nom = l.seance || 'Séance';
+    let g = par.find(x => x.nom === nom);
+    if(!g){ g = { nom, exos: [] }; par.push(g); }
+    g.exos.push(l);
+  });
+  return '<div class="seances">' + par.map(g =>
+    '<div class="seance"><span class="nom">' + esc(g.nom) + '</span>'
+    + g.exos.map(l =>
+        '<div class="exo"><span class="quoi">' + esc(l.exercice || '—') + '</span>'
+        + '<span class="res">' + (estVide(l.resultat) ? '<span style="color:var(--muted)">pas de résultat</span>' : esc(l.resultat)) + '</span>'
+        + (l.video ? '<span title="vidéo envoyée">🎬</span>' : '')
+        + (!compact && !estVide(l.comment) ? '<span class="com">' + esc(l.comment) + '</span>' : '')
+        + '</div>').join('')
+    + '</div>').join('') + '</div>';
+}
 
 /* --------------------------- écrans et session --------------------------- */
 const $ = s => document.querySelector(s);
