@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Prog Indiv">
-<meta name="build" content="20260830-1749">
+<meta name="build" content="20260924-0029">
 <meta name="robots" content="noindex, nofollow">
 <title>EASTBOX · PROG INDIV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,7 +38,7 @@ body{
   background:var(--navy); color:var(--ink);
   font-family:'Inter',system-ui,-apple-system,sans-serif;
   font-size:15px; line-height:1.55;
-  min-height:100dvh; overscroll-behavior-y:none;
+  min-height:100vh; min-height:100dvh; overscroll-behavior-y:none;
   padding-bottom:env(safe-area-inset-bottom);
 }
 h1,h2,h3,h4{margin:0;font-weight:700}
@@ -72,7 +72,7 @@ header{
 main{padding:var(--pad);max-width:640px;margin:0 auto}
 
 /* ---------- Écran connexion (même style qu'index.html/tv.html) ---------- */
-#login{min-height:100dvh;display:grid;place-items:center;padding:24px}
+#login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px}
 .card-login{
   width:100%;max-width:380px;background:var(--navy-2);
   border:1px solid var(--line);border-radius:20px;padding:30px 24px;
@@ -448,7 +448,7 @@ input[type=range].ci-slider-input::-moz-range-thumb{
    nouvelle action 'indivLogin' y a été ajoutée, espace INDIV_USERS séparé
    des coachs). Ne pas changer sans changer les 3 fichiers.
    =========================================================================== */
-const API = 'https://script.google.com/macros/s/AKfycbyiug_GyeZa-lgbbIB7TQZ_3_p8pIpRwxF0ICYuWUXQ5NbKcj6pH3dMsVBspScEYB9pMg/exec';
+const API = 'https://script.google.com/macros/s/AKfycbyif7unkQTg6k-AnvdsyPUx0rJMujdKLDxjQsosD2g0_H2OT4QAFdim7zSOWz0PJcUZuw/exec';
 
 const S = { token:null, user:null, tab:'quotidien' };
 const $  = s => document.querySelector(s);
@@ -1700,7 +1700,7 @@ window.addEventListener('pageshow', recheckOnReturn);
    <meta name="build"> y est placé exprès, pour ne pas retélécharger les
    270 Ko de la page à chaque ouverture) et on recharge si la version diffère.
    =========================================================================== */
-const BUILD = '20260830-1749';
+const BUILD = '20260924-0029';
 
 async function checkVersion(){
   try{
