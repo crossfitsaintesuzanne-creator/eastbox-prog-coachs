@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260924-0029">
+<meta name="build" content="20260924-1121">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -250,6 +250,7 @@ input:focus{border-color:var(--orange)}
 <!-- ============================ MODE TV ============================ -->
 <div id="tv" class="hide"></div>
 
+<script src="config.js"></script>
 <script>
 /* ===========================================================================
    FILET D'ERREUR — à installer AVANT tout le reste (2026-09-02).
@@ -281,7 +282,11 @@ window.addEventListener('error', function (ev) {
 /* ===========================================================================
    CONFIGURATION — doit rester identique à la constante API d'index.html.
    =========================================================================== */
-const API = 'https://script.google.com/macros/s/AKfycbyif7unkQTg6k-AnvdsyPUx0rJMujdKLDxjQsosD2g0_H2OT4QAFdim7zSOWz0PJcUZuw/exec';
+// Adresse du serveur : lue dans config.js, à côté de cette page, pour
+// qu'un changement de déploiement ne touche qu'UN fichier (2026-09-24).
+// La valeur ci-dessous ne sert que si config.js manque.
+const API = (typeof window !== 'undefined' && window.EASTBOX_API)
+          || 'https://script.google.com/macros/s/AKfycbxjyWXuV6at7I3E-8P43_0hEVCsGbh30GZLpw3KEsyJCPIDsJM7WoEcX-kDuValW8ljBg/exec';
 
 const ROTATE_MS = 30000; // durée d'affichage d'une discipline avant de passer à la suivante
 
@@ -289,8 +294,13 @@ const S = { token:null, user:null, items:[], todayCache:{}, tvCards:[], tvIdx:0 
 const $  = s => document.querySelector(s);
 
 async function api(payload){
-  const r = await fetch(API, {
+  // ?cb= : /exec répond par une redirection vers script.googleusercontent.com,
+  // et cette redirection périme. Sans ça le navigateur rejoue l'ancienne cible
+  // et reçoit une page HTML d'erreur (« Unexpected token < », dashboard local,
+  // 2026-09-24).
+  const r = await fetch(API + '?cb=' + Date.now(), {
     method:'POST',
+    cache:'no-store',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
     body:JSON.stringify(payload),
     redirect:'follow'
@@ -1298,7 +1308,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260924-0029';
+const BUILD = '20260924-1121';
 
 async function checkVersion(){
   try{

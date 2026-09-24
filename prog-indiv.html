@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Prog Indiv">
-<meta name="build" content="20260924-0029">
+<meta name="build" content="20260924-1121">
 <meta name="robots" content="noindex, nofollow">
 <title>EASTBOX · PROG INDIV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -442,20 +442,30 @@ input[type=range].ci-slider-input::-moz-range-thumb{
   <div class="ci-toast" id="ciToast"></div>
 </div>
 
+<script src="config.js"></script>
 <script>
 /* ===========================================================================
    CONFIGURATION — même déploiement Apps Script qu'index.html/tv.html (une
    nouvelle action 'indivLogin' y a été ajoutée, espace INDIV_USERS séparé
    des coachs). Ne pas changer sans changer les 3 fichiers.
    =========================================================================== */
-const API = 'https://script.google.com/macros/s/AKfycbyif7unkQTg6k-AnvdsyPUx0rJMujdKLDxjQsosD2g0_H2OT4QAFdim7zSOWz0PJcUZuw/exec';
+// Adresse du serveur : lue dans config.js, à côté de cette page, pour
+// qu'un changement de déploiement ne touche qu'UN fichier (2026-09-24).
+// La valeur ci-dessous ne sert que si config.js manque.
+const API = (typeof window !== 'undefined' && window.EASTBOX_API)
+          || 'https://script.google.com/macros/s/AKfycbxjyWXuV6at7I3E-8P43_0hEVCsGbh30GZLpw3KEsyJCPIDsJM7WoEcX-kDuValW8ljBg/exec';
 
 const S = { token:null, user:null, tab:'quotidien' };
 const $  = s => document.querySelector(s);
 
 async function api(payload){
-  const r = await fetch(API, {
+  // ?cb= : /exec répond par une redirection vers script.googleusercontent.com,
+  // et cette redirection périme. Sans ça le navigateur rejoue l'ancienne cible
+  // et reçoit une page HTML d'erreur (« Unexpected token < », dashboard local,
+  // 2026-09-24).
+  const r = await fetch(API + '?cb=' + Date.now(), {
     method:'POST',
+    cache:'no-store',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
     body:JSON.stringify(payload),
     redirect:'follow'
@@ -864,8 +874,8 @@ function sendBilanWhatsApp(){
   // donc le mode CORS normal suffit — c'est le même que api(), déjà éprouvé.
   if(S.token){
     try{
-      fetch(API, {
-        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      fetch(API + '?cb=' + Date.now(), {
+        method:'POST', cache:'no-store', headers:{'Content-Type':'text/plain;charset=utf-8'},
         body: JSON.stringify(Object.assign({ action:'indivBilanSubmit', token:S.token }, ci, {
           duration: hasTraining ? ci.duration : 0,
           rpe: hasTraining ? ci.rpe : ''
@@ -1700,7 +1710,7 @@ window.addEventListener('pageshow', recheckOnReturn);
    <meta name="build"> y est placé exprès, pour ne pas retélécharger les
    270 Ko de la page à chaque ouverture) et on recharge si la version diffère.
    =========================================================================== */
-const BUILD = '20260924-0029';
+const BUILD = '20260924-1121';
 
 async function checkVersion(){
   try{
