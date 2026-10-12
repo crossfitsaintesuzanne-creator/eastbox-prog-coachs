@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20260924-1121">
+<meta name="build" content="20261012-1037">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -286,7 +286,7 @@ window.addEventListener('error', function (ev) {
 // qu'un changement de déploiement ne touche qu'UN fichier (2026-09-24).
 // La valeur ci-dessous ne sert que si config.js manque.
 const API = (typeof window !== 'undefined' && window.EASTBOX_API)
-          || 'https://script.google.com/macros/s/AKfycbxjyWXuV6at7I3E-8P43_0hEVCsGbh30GZLpw3KEsyJCPIDsJM7WoEcX-kDuValW8ljBg/exec';
+          || 'https://script.google.com/macros/s/AKfycbw9NN8TnF6IDbgISSLwVR_dMsQwANI4vdF6NUxMvLbbTkcHHdHPcnCxoY7FBhdO3M6hIQ/exec';
 
 const ROTATE_MS = 30000; // durée d'affichage d'une discipline avant de passer à la suivante
 
@@ -1308,7 +1308,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20260924-1121';
+const BUILD = '20261012-1037';
 
 async function checkVersion(){
   try{

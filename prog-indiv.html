@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Prog Indiv">
-<meta name="build" content="20260924-1121">
+<meta name="build" content="20261012-1037">
 <meta name="robots" content="noindex, nofollow">
 <title>EASTBOX · PROG INDIV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -453,7 +453,7 @@ input[type=range].ci-slider-input::-moz-range-thumb{
 // qu'un changement de déploiement ne touche qu'UN fichier (2026-09-24).
 // La valeur ci-dessous ne sert que si config.js manque.
 const API = (typeof window !== 'undefined' && window.EASTBOX_API)
-          || 'https://script.google.com/macros/s/AKfycbxjyWXuV6at7I3E-8P43_0hEVCsGbh30GZLpw3KEsyJCPIDsJM7WoEcX-kDuValW8ljBg/exec';
+          || 'https://script.google.com/macros/s/AKfycbw9NN8TnF6IDbgISSLwVR_dMsQwANI4vdF6NUxMvLbbTkcHHdHPcnCxoY7FBhdO3M6hIQ/exec';
 
 const S = { token:null, user:null, tab:'quotidien' };
 const $  = s => document.querySelector(s);
@@ -1710,7 +1710,7 @@ window.addEventListener('pageshow', recheckOnReturn);
    <meta name="build"> y est placé exprès, pour ne pas retélécharger les
    270 Ko de la page à chaque ouverture) et on recharge si la version diffère.
    =========================================================================== */
-const BUILD = '20260924-1121';
+const BUILD = '20261012-1037';
 
 async function checkVersion(){
   try{
