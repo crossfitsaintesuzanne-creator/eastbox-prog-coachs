@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20261012-1037">
+<meta name="build" content="20261014-1100">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -1006,19 +1006,32 @@ const ALWAYS_HIDDEN_SECTIONS = [/coaching tip/i, /message du coach/i, /note coac
 
 /** Renvoie { html, ticker } : le HTML des colonnes, et le texte du bandeau
  *  défilant (chaîne vide s'il n'y a pas de bloc à y mettre). */
-function renderWodSection(bodyMd, disc){
-  const lines = bodyMd.split(/\r?\n/);
+/** Découpe le corps d'une journée en blocs. Niveau de titre à utiliser :
+ *  - 4 (`####`) : le format habituel, « ### WOD » puis un `####` par bloc.
+ *  - 3 (`###`)  : le repli, pour les journées écrites SANS `####` — depuis le
+ *    2026-10-14, Ron écrit les séances Hyrox avec un seul titre
+ *    « ### Conditioning — … » et le contenu dessous, sans warm-up. Sans ce
+ *    repli, la journée n'avait aucun bloc et tombait dans le rendu brut : pas
+ *    de colonnes, pas de bandeau. */
+function decouperBlocs(lines, niveau){
   const sections = [];
   let cur = null;
   lines.forEach(raw => {
     const m = raw.match(/^(#{3,4})\s+(.*)$/);
     if(m){
-      if(m[1].length === 4){ cur = { heading: m[2].trim(), lines: [] }; sections.push(cur); }
-      else cur = null; // ### (ex. "WOD"/"Conditioning") : pas un bloc affiché séparément
+      if(m[1].length === niveau){ cur = { heading: m[2].trim(), lines: [] }; sections.push(cur); }
+      else if(m[1].length < niveau) cur = null;   // titre de niveau supérieur : on ferme
       return;
     }
     if(cur) cur.lines.push(raw);
   });
+  return sections;
+}
+
+function renderWodSection(bodyMd, disc){
+  const lines = bodyMd.split(/\r?\n/);
+  let sections = decouperBlocs(lines, 4);
+  if(!sections.length) sections = decouperBlocs(lines, 3);
   if(!sections.length) return { html:'<div class="doc-fallback">'+md(bodyMd)+'</div>', ticker:'' };
 
   const hidden = (disc && HIDDEN_SECTIONS[disc.key]) || [];
@@ -1308,7 +1321,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20261012-1037';
+const BUILD = '20261014-1100';
 
 async function checkVersion(){
   try{
