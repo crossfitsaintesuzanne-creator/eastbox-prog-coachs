@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20261014-1100">
+<meta name="build" content="20261030-2310">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -219,6 +219,28 @@ input:focus{border-color:var(--orange)}
 .wdet{font-size:.5em;line-height:1.4;color:var(--ink);padding:.1em 0;white-space:normal}
 .wdet+.wdet{margin-top:.3em}
 .wdet strong,.wdet b{color:var(--cyan)}
+
+/* ======================= ÉVÉNEMENT PONCTUEL =======================
+   WOD Halloween parent/enfant du 31/10/2026. Tout ce qui concerne
+   l'événement est regroupé en 3 endroits marqués « ÉVÉNEMENT PONCTUEL » :
+   ce bloc CSS, la constante EVENT_PONCTUEL et la branche d'affichage
+   dans renderSlide(). La carte n'apparaît QUE à la date indiquée :
+   le lendemain l'écran revient tout seul à la normale, rien à défaire.
+   Pour tout supprimer : effacer les 3 blocs. ------------------------ */
+.ev-wrap{flex:1;min-height:0;display:flex;gap:14px;overflow:hidden}
+.ev-main{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;
+  background:#0b162a;border-radius:14px;overflow:hidden;cursor:pointer}
+.ev-main img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.ev-list{flex:0 0 150px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.ev-thumb{flex:1;min-height:0;position:relative;overflow:hidden;padding:0;
+  background:#0b162a;border:3px solid transparent;border-radius:10px;cursor:pointer}
+.ev-thumb.on{border-color:var(--c,var(--orange))}
+.ev-thumb img{width:100%;height:100%;object-fit:cover;display:block;opacity:.5}
+.ev-thumb.on img{opacity:1}
+.ev-thumb span{position:absolute;left:0;right:0;bottom:0;
+  font-size:15px;font-weight:800;line-height:1.2;color:#fff;
+  background:rgba(5,12,25,.8);padding:6px 4px;text-align:center}
+.ev-miss{margin:auto;text-align:center;color:#ffd9a8;font-size:24px;font-weight:700;padding:20px}
 </style>
 </head>
 <body>
@@ -425,6 +447,40 @@ function pickSlide(i){
  *  autres restent sur le repli générique, pas encore validées pour le mur
  *  de salle. Liste à élargir ici quand une nouvelle discipline sera prête,
  *  rien d'autre à toucher. */
+/* ======================= ÉVÉNEMENT PONCTUEL =======================
+ *  Une carte d'images en plus des disciplines, UNIQUEMENT le jour dit.
+ *  `date` : au format AAAA-MM-JJ, comparé à la date locale de l'écran.
+ *  Le 01/11 la carte disparaît d'elle-même — rien à redéployer.
+ *  `forcer:true` l'affiche quelle que soit la date (pour un essai).
+ *  Les images sont servies à côté de tv.html, dossier event-halloween/. */
+const EVENT_PONCTUEL = {
+  date:   '2026-10-31',
+  forcer: false,
+  label:  'Halloween',
+  color:  '#ff7a18',
+  images: [
+    { src:'event-halloween/halloween-1.jpg', nom:'Échauffement' },
+    { src:'event-halloween/halloween-2.jpg', nom:'Le Duel' },
+    { src:'event-halloween/halloween-3.jpg', nom:'Circuit en duo' },
+    { src:'event-halloween/halloween-4.jpg', nom:'Mini WOD 6\u2032' }
+  ]
+};
+function carteEvenement(now){
+  const j = now.getFullYear() + '-'
+          + String(now.getMonth()+1).padStart(2,'0') + '-'
+          + String(now.getDate()).padStart(2,'0');
+  if(!EVENT_PONCTUEL.forcer && j !== EVENT_PONCTUEL.date) return null;
+  if(!EVENT_PONCTUEL.images.length) return null;
+  return {
+    type:'event',
+    disc:{ key:'event', label:EVENT_PONCTUEL.label, color:EVENT_PONCTUEL.color },
+    label:EVENT_PONCTUEL.label,
+    images:EVENT_PONCTUEL.images,
+    imgIdx:0
+  };
+}
+/* ================== fin ÉVÉNEMENT PONCTUEL ======================== */
+
 const TV_DISCIPLINES = ['crossfit', 'hyrox', 'kids', 'stamina'];
 
 /* ===========================================================================
@@ -632,6 +688,9 @@ async function computeTodayCards(){
     }
     if(card) cards.push(card);
   }
+  // ÉVÉNEMENT PONCTUEL : la carte passe en tête pour être vue en premier.
+  const ev = carteEvenement(now);
+  if(ev) cards.unshift(ev);
   cards.echecs = echecs;   // porté avec le résultat, lu par renderSlide()
   return cards;
 }
@@ -725,6 +784,15 @@ function renderSlide(){
   }
 
   const c = cards[S.tvIdx];
+
+  // ÉVÉNEMENT PONCTUEL : carte d'images, rendu à part. On sort ici — pas de
+  // bandeau, pas d'ajustement de colonnes : il n'y a pas de texte à mesurer.
+  if(c.type === 'event'){
+    $('#tv').innerHTML = h + rendreEvenement(c);
+    brancherEvenement(c);
+    return;
+  }
+
   const day = c.days[c.idx];
   const body = day.body.replace(/^##[^\n]*\n?/, '');
 
@@ -771,6 +839,56 @@ function renderSlide(){
     setTimeout(lancer, 120);
   });
 }
+
+/* ======================= ÉVÉNEMENT PONCTUEL =======================
+ *  Grande image à gauche, vignettes de sélection à droite. Un clic sur une
+ *  vignette choisit l'image ; un clic sur la grande image passe à la
+ *  suivante. Dans les deux cas on arrête la rotation automatique : pendant
+ *  l'événement, l'écran reste sur ce que le coach a choisi. */
+function rendreEvenement(c){
+  const img = c.images[c.imgIdx] || c.images[0];
+  let vignettes = '';
+  c.images.forEach((im, i) => {
+    vignettes += '<button class="ev-thumb'+(i===c.imgIdx?' on':'')+'" '
+               + 'onclick="pickEventImage('+i+')">'
+               + '<img src="'+esc(im.src)+'" alt="">'
+               + '<span>'+esc(im.nom)+'</span></button>';
+  });
+  return '<div class="tv-slide" style="--c:'+c.disc.color+'">'
+       + '<div class="tv-slide-top">'
+       + '<span class="tv-pill" style="--c:'+c.disc.color+'">'+esc(img.nom)+'</span>'
+       + '</div>'
+       + '<div class="ev-wrap">'
+       + '<div class="ev-main" id="evMain"><img src="'+esc(img.src)+'" alt="'+esc(img.nom)+'"></div>'
+       + '<div class="ev-list">'+vignettes+'</div>'
+       + '</div></div>';
+}
+function brancherEvenement(c){
+  const zone = document.getElementById('evMain');
+  if(zone) zone.addEventListener('click', () => pickEventImage(c.imgIdx + 1));
+  // Image manquante (fichier pas encore en ligne) : le dire au lieu de
+  // laisser un cadre vide sur le mur de la salle.
+  const grande = zone && zone.querySelector('img');
+  if(grande){
+    const rater = () => {
+      zone.innerHTML = '<div class="ev-miss">Image introuvable<br>'
+                     + '<span style="font-size:.7em">' + esc(grande.getAttribute('src')) + '</span></div>';
+    };
+    grande.addEventListener('error', rater);
+    // L'image peut avoir DÉJÀ échoué avant qu'on écoute (cache du navigateur) :
+    // dans ce cas aucun événement ne viendra, il faut le constater tout de suite.
+    if(grande.complete && !grande.naturalWidth) rater();
+  }
+}
+function pickEventImage(i){
+  const c = S.tvCards[S.tvIdx];
+  if(!c || c.type !== 'event' || !c.images.length) return;
+  c.imgIdx = ((i % c.images.length) + c.images.length) % c.images.length;
+  S.tvManual = true;
+  clearInterval(S.rotateInterval);
+  renderSlide();
+}
+/* ================== fin ÉVÉNEMENT PONCTUEL ======================== */
 
 /** Vitesse de défilement constante quelle que soit la longueur du texte :
  *  la durée est calculée depuis la largeur réelle d'UNE copie (la piste en
@@ -1321,7 +1439,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20261014-1100';
+const BUILD = '20261030-2310';
 
 async function checkVersion(){
   try{
