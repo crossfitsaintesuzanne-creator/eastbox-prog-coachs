@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Prog Indiv">
-<meta name="build" content="20261012-1037">
+<meta name="build" content="20261118-2320">
 <meta name="robots" content="noindex, nofollow">
 <title>EASTBOX · PROG INDIV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -451,9 +451,11 @@ input[type=range].ci-slider-input::-moz-range-thumb{
    =========================================================================== */
 // Adresse du serveur : lue dans config.js, à côté de cette page, pour
 // qu'un changement de déploiement ne touche qu'UN fichier (2026-09-24).
-// La valeur ci-dessous ne sert que si config.js manque.
+// La valeur ci-dessous ne sert que si config.js manque. Mise à jour en même
+// temps que config.js au 5e déploiement (2026-11-18) : un repli figé sur un
+// vieux déploiement ferait repartir la page en silence sur d'anciens droits.
 const API = (typeof window !== 'undefined' && window.EASTBOX_API)
-          || 'https://script.google.com/macros/s/AKfycbw9NN8TnF6IDbgISSLwVR_dMsQwANI4vdF6NUxMvLbbTkcHHdHPcnCxoY7FBhdO3M6hIQ/exec';
+          || 'https://script.google.com/macros/s/AKfycbxjD54ElzSQk5drmQutqyVQ6xdhaNCliJ1M7Rd1XwufW-8cW8DCXJ1h_cQh2Nl2w-zw-Q/exec';
 
 const S = { token:null, user:null, tab:'quotidien' };
 const $  = s => document.querySelector(s);
@@ -1710,7 +1712,7 @@ window.addEventListener('pageshow', recheckOnReturn);
    <meta name="build"> y est placé exprès, pour ne pas retélécharger les
    270 Ko de la page à chaque ouverture) et on recharge si la version diffère.
    =========================================================================== */
-const BUILD = '20261012-1037';
+const BUILD = '20261118-2320';
 
 async function checkVersion(){
   try{
