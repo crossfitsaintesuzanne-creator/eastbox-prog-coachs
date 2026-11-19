@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20261119-0854">
+<meta name="build" content="20261119-1238">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -314,7 +314,7 @@ const API = (typeof window !== 'undefined' && window.EASTBOX_API)
 
 const ROTATE_MS = 30000; // durée d'affichage d'une discipline avant de passer à la suivante
 
-const S = { token:null, user:null, items:[], todayCache:{}, tvCards:[], tvIdx:0 };
+const S = { token:null, user:null, cleEcran:null, items:[], todayCache:{}, tvCards:[], tvIdx:0 };
 const $  = s => document.querySelector(s);
 
 async function api(payload){
@@ -347,8 +347,7 @@ $('#loginForm').addEventListener('submit', async e => {
       ? await api({ action:'login', login:$('#u').value, pass:$('#p').value })
       : await api({ action:'tvKey', key:saisi });
     if(!res.ok) throw new Error(res.error || 'Échec de la connexion');
-    S.token = res.token; S.user = res.user;
-    try{ localStorage.setItem('eb_tv', JSON.stringify({t:res.token,u:res.user})); }catch(_){}
+    memoriseSession(res, $('#u').value.trim() ? null : saisi);
     $('#p').value = '';
     startTV();
   }catch(err){
@@ -358,9 +357,63 @@ $('#loginForm').addEventListener('submit', async e => {
   }
 });
 
+/* ===========================================================================
+   SESSION DE L'ÉCRAN — ne jamais rester bloqué sur d'anciens droits
+   (2026-11-19, après la bascule ATHX du jeudi).
+
+   L'écran se connecte UNE fois puis garde sa session 5 ans dans localStorage
+   ('eb_tv') — avec, dedans, la liste des disciplines telle qu'elle était CE
+   JOUR-LÀ. Le jour où une discipline est ajoutée côté serveur (ATHX, Legend,
+   Run), l'écran ne la voit donc jamais : il filtre sur une liste périmée.
+   C'est resté invisible tant qu'on ne faisait qu'AJOUTER des colonnes ; avec
+   une SUBSTITUTION (le jeudi, ATHX prend la place d'Hyrox), Hyrox disparaît
+   et ATHX n'arrive pas — la colonne s'évapore. C'est exactement ce qui s'est
+   passé le 19/11.
+
+   Deux garde-fous, côté page uniquement (aucun redéploiement du .gs) :
+     1. une clé présente dans l'URL l'emporte TOUJOURS sur la session en
+        cache : rouvrir le favori de l'écran suffit à repartir à neuf ;
+     2. la clé est mémorisée à côté du jeton — même secret, même appareil,
+        et JAMAIS écrite dans ce fichier, qui est public sur GitHub Pages.
+        L'écran peut ainsi se reconnecter TOUT SEUL dès qu'il détecte des
+        droits périmés, sans clavier ni intervention dans la salle.
+
+   Correctif de fond à faire au prochain déploiement du .gs : qu'actionList
+   renvoie `access`. Ça réglerait du même coup la déconnexion/reconnexion
+   imposée aux coachs dans index.html. */
+function memoriseSession(res, cle){
+  S.token = res.token;
+  S.user  = res.user;
+  if(cle) S.cleEcran = cle;
+  try{
+    localStorage.setItem('eb_tv', JSON.stringify({ t:res.token, u:res.user, k:S.cleEcran || null }));
+  }catch(_){}
+}
+
+/** Les items renvoyés par le serveur sont filtrés par les droits RÉELS du
+ *  jeton. Si l'un d'eux porte une discipline absente de S.user.access, c'est
+ *  que le cache local est en retard sur le serveur : on se reconnecte. */
+async function verifieDroits(items){
+  if(!S.cleEcran || !items || !items.length) return false;
+  const connues = (S.user && S.user.access || []).map(a => a.key);
+  const manquantes = [];
+  items.forEach(i => {
+    if(i.discipline && connues.indexOf(i.discipline) === -1 && manquantes.indexOf(i.discipline) === -1)
+      manquantes.push(i.discipline);
+  });
+  if(!manquantes.length) return false;
+  try{
+    const res = await api({ action:'tvKey', key:S.cleEcran });
+    if(!res.ok || !res.user) return false;
+    memoriseSession(res, S.cleEcran);
+    console.log('Droits rafraîchis automatiquement : ' + manquantes.join(', '));
+    return true;
+  }catch(_){ return false; }
+}
+
 function logout(note){
   try{ localStorage.removeItem('eb_tv'); }catch(_){}
-  S.token = S.user = null;
+  S.token = S.user = S.cleEcran = null;
   clearInterval(S.tvInterval); clearInterval(S.rotateInterval);
   $('#tv').classList.add('hide');
   $('#login').classList.remove('hide');
@@ -373,7 +426,7 @@ function restore(){
     if(!raw) return false;
     const s = JSON.parse(raw);
     if(!s.t || !s.u) return false;
-    S.token = s.t; S.user = s.u;
+    S.token = s.t; S.user = s.u; S.cleEcran = s.k || null;
     return true;
   }catch(_){ return false; }
 }
@@ -395,6 +448,9 @@ async function refreshTV(){
     const res = await api({ action:'list', token:S.token, refresh:1 });
     if(!res.ok) throw new Error(res.error);
     S.items = res.items || [];
+    // Droits périmés dans le cache ? On se reconnecte avant de composer
+    // l'écran, sinon une discipline ajoutée côté serveur resterait invisible.
+    await verifieDroits(S.items);
   }catch(err){
     $('#tv').innerHTML = '<div class="tv-screen"><div class="tv-empty">⚠️ '+esc(err.message)+'</div></div>';
     return;
@@ -1472,7 +1528,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20261119-0854';
+const BUILD = '20261119-1238';
 
 async function checkVersion(){
   try{
@@ -1585,7 +1641,6 @@ setInterval(checkVersion, 30 * 60 * 1000);
  *  traîne pas à l'écran ni dans une capture, et le rechargement automatique de
  *  version (checkVersion) repart de toute façon sur une URL propre. */
 async function demarrer(){
-  if(restore()){ startTV(); return; }
 
   // On accepte la clé dans la chaîne de requête (?k=) ET dans le fragment
   // (#k=) : certains navigateurs de boîtiers d'affichage suppriment la
@@ -1593,18 +1648,28 @@ async function demarrer(){
   // la forme la plus discrète des deux.
   const cle = new URLSearchParams(location.search).get('k')
            || new URLSearchParams(location.hash.replace(/^#/, '')).get('k');
-  if(!cle){ afficheDiagnosticConnexion(); return; }   // pas de clé : formulaire
+
+  // 2026-11-19 : la clé passe AVANT la session en cache. Rouvrir le favori de
+  // l'écran redevient ainsi le geste qui répare tout — avant, le cache était
+  // lu en premier et la clé n'avait plus aucun effet une fois l'écran appairé.
+  if(!cle){
+    if(restore()){ startTV(); return; }
+    afficheDiagnosticConnexion(); return;   // ni clé ni session : formulaire
+  }
 
   $('#tv').classList.remove('hide');
   $('#tv').innerHTML = '<div class="tv-screen"><div class="spin" style="margin:auto"></div></div>';
   try{
     const res = await api({ action:'tvKey', key:cle });
     if(!res.ok) throw new Error(res.error || 'Clé refusée');
-    S.token = res.token; S.user = res.user;
-    try{ localStorage.setItem('eb_tv', JSON.stringify({t:res.token,u:res.user})); }catch(_){}
+    memoriseSession(res, cle);
     history.replaceState(null, '', location.pathname);
     startTV();
   }catch(err){
+    // La clé passe avant le cache, mais elle ne doit pas le CONDAMNER : une
+    // coupure réseau de deux secondes au démarrage laisserait sinon un
+    // formulaire de connexion affiché sur le mur de la salle (2026-11-19).
+    if(restore()){ console.warn('Clé refusée ou injoignable, reprise sur la session en cache', err); startTV(); return; }
     // On retombe sur le formulaire plutôt que de laisser un écran mort.
     $('#tv').classList.add('hide');
     $('#login').classList.remove('hide');
