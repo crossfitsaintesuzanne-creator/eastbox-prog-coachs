@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="build" content="20261118-2320">
+<meta name="build" content="20261119-0854">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14233c">
 <meta name="robots" content="noindex, nofollow">
@@ -485,6 +485,29 @@ function carteEvenement(now){
 
 const TV_DISCIPLINES = ['crossfit', 'hyrox', 'kids', 'stamina'];
 
+/** Substitutions du jour (2026-11-19, demande de Ron) : le JEUDI, la salle
+ *  tourne en ATHX et pas en Hyrox. L'écran doit donc montrer la séance ATHX
+ *  à la place de la séance Hyrox ce jour-là — et Hyrox normalement les six
+ *  autres jours.
+ *
+ *  On remplace la clé dans la liste du jour au lieu d'ajouter 'athx' à
+ *  TV_DISCIPLINES : sinon les deux pastilles s'afficheraient côte à côte le
+ *  jeudi, et ATHX apparaîtrait aussi les autres jours. Une substitution =
+ *  une ligne ici, rien à toucher ailleurs.
+ *
+ *  getDay() : 0 = dimanche … 4 = jeudi. */
+const TV_SUBSTITUTIONS = [
+  { jour: 4, remplace: 'hyrox', par: 'athx' }
+];
+
+function tvDisciplinesDuJour(now){
+  const jour = now.getDay();
+  return TV_DISCIPLINES.map(function(k){
+    const sub = TV_SUBSTITUTIONS.find(s => s.jour === jour && s.remplace === k);
+    return sub ? sub.par : k;
+  });
+}
+
 /* ===========================================================================
    PRÉ-KIDS / KIDS / TEENS SUR L'ÉCRAN TV (2026-09-09, demande de Ron)
 
@@ -642,9 +665,13 @@ function loadKidsCards(items, now, lire){
 }
 
 async function computeTodayCards(){
-  const discs = S.user.access.filter(a => TV_DISCIPLINES.includes(a.key));
-  if(!discs.length) return [];
   const now = new Date();
+  // La liste dépend du jour : voir TV_SUBSTITUTIONS (ATHX au lieu d'Hyrox
+  // le jeudi). Le compte 'tv' a tous les droits, la discipline substituée
+  // est donc bien dans S.user.access.
+  const dujour = tvDisciplinesDuJour(now);
+  const discs = S.user.access.filter(a => dujour.includes(a.key));
+  if(!discs.length) return [];
   const { week:targetWeek, year:targetYear } = isoWeekYear(now);
   function pickForWeek(items){
     return items.find(i => i.week === targetWeek && i.year === targetYear) || items[0];
@@ -1102,6 +1129,10 @@ const DISPLAY_RULES = {
  *  la page NST regroupe les 2 mais seule la Conditioning intéresse le mur TV). */
 const HIDDEN_SECTIONS = {
   hyrox:    [/warm.?up/i],
+  // 2026-11-19 : ATHX remplace Hyrox le jeudi et ses .md ont la même forme
+  // (un « Warmup » puis le « Conditioning »). Même règle, donc : le mur
+  // n'affiche que le travail.
+  athx:     [/warm.?up/i],
   // 2026-09-12, demande de Ron : même règle que CrossFit et Hyrox. L'écran de
   // la salle montre le travail, pas l'échauffement — qui reste dans le .md et
   // dans l'appli coach.
@@ -1441,7 +1472,7 @@ function md(src){
    si elle a changé. On ne demande que les 2 premiers Ko du fichier (le meta
    "build" est en tête de <head>) : inutile de retélécharger toute la page.
    =========================================================================== */
-const BUILD = '20261118-2320';
+const BUILD = '20261119-0854';
 
 async function checkVersion(){
   try{
